@@ -3,7 +3,11 @@ project(dltrophy_simulator)
 
 set(CMAKE_CXX_STANDARD 20)
 
+include(FindOpenGL)
+find_package(OpenGL REQUIRED)
+
 include(FetchContent)
+
 FetchContent_Declare(
         glfw
         GIT_REPOSITORY https://github.com/glfw/glfw.git
@@ -11,8 +15,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
-include(FindOpenGL)
-find_package(OpenGL REQUIRED)
+# cf. https://github.com/andreacasalino/Minimal-Socket?tab=readme-ov-file#cmake-support
+set(BUILD_MinimalCppSocket_SAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+        min_sock
+        GIT_REPOSITORY https://github.com/andreacasalino/Minimal-Socket
+        GIT_TAG        master
+)
+FetchContent_MakeAvailable(min_sock)
 
 add_executable(${PROJECT_NAME}
         src/main.cpp
@@ -25,9 +35,12 @@ add_executable(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME}
-        OpenGL::GL
-        glfw
+        PRIVATE OpenGL::GL
+        PRIVATE glfw
+        PRIVATE MinimalSocket
 )
+
+add_subdirectory(tools)
 
 # cross-platform flags, e.g.
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")

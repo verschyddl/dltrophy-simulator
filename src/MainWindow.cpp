@@ -40,6 +40,8 @@ MainWindow::~MainWindow() {
 
 void MainWindow::run() {
 
+    glClear(GL_COLOR_BUFFER_BIT);
+
     while (!glfwWindowShouldClose(window)) {
 
         // TODO: render something
