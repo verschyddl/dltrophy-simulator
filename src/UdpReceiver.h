@@ -10,11 +10,21 @@
 class UdpReceiver {
 private:
     MinimalSocket::Port port = 3413;
-    MinimalSocket::udp::Udp<true> socket;
+
+    // the boolean "false" here means "non-blocking":
+    MinimalSocket::udp::Udp<false> socket;
+
+    // UDP message size as limited by WLED:
+    // https://kno.wled.ge/interfaces/udp-realtime/
+    const std::size_t max_message_size = 1024;
 
 public:
     explicit UdpReceiver(int port);
     ~UdpReceiver() = default;
+
+    std::optional<MinimalSocket::ReceiveStringResult> listen() {
+        return socket.receive(max_message_size);
+    }
 };
 
 #endif //DLTROPHY_SIMULATOR_UDPRECEIVER_H

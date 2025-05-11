@@ -1,16 +1,16 @@
 #include <iostream>
-#include "MainWindow.h"
+#include "SimulatorApp.h"
 
 int main() {
+
     try {
-
-        MainWindow window(1280, 1080, "DL Trophy Smiulator");
-        window.run();
-
+        SimulatorApp app(1280, 1080, 3413);
+        app.run();
         return 0;
     }
     catch (const std::exception& e) {
         std::cerr << "ERROR: " << e.what() << std::endl;
         return 1;
     }
+
 }

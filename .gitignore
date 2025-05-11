@@ -1,4 +1,5 @@
 cmake-build-debug/
+external/
 
 ### C++ template
 # Compiled Object files
