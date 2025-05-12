@@ -66,7 +66,8 @@ TrophyShader::~TrophyShader() {
 
 void compileShader(ShaderMeta& shader) {
     shader.id = glCreateShader(shader.type);
-    glShaderSource(shader.id, 1, &shader.source, nullptr);
+    const char* source = shader.source.c_str();
+    glShaderSource(shader.id, 1, &source, nullptr);
     glCompileShader(shader.id);
 
     GLint status;
@@ -81,6 +82,8 @@ void compileShader(ShaderMeta& shader) {
 }
 
 void TrophyShader::createProgram() {
+    auto v = glCreateShader(GL_VERTEX_SHADER);
+    auto f = glCreateShader(GL_FRAGMENT_SHADER);
     compileShader(vertex);
     compileShader(fragment);
 

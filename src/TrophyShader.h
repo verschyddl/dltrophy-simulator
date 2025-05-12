@@ -10,11 +10,11 @@
 #include <fstream>
 #include <optional>
 #include <utility>
-#include <GL/glew.h>
+#include <glad/gl.h>
 
 struct ShaderMeta {
     GLenum type;
-    const char* source = nullptr;
+    std::string source;
     GLuint id = 0;
     std::string error;
 
@@ -25,16 +25,11 @@ struct ShaderMeta {
     }
 
     void read(const std::string& path) {
-        std::ifstream file;
-        file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-        file.open(path);
-
+        std::ifstream file(path);
         std::stringstream buffer;
         buffer << file.rdbuf();
-        file.clear();
+        source = buffer.str();
         file.close();
-
-        source = buffer.str().c_str();
     }
 };
 

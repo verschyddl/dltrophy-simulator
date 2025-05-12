@@ -5,9 +5,8 @@
 #ifndef DLTROPHY_SIMULATOR_SIMULATORAPP_H
 #define DLTROPHY_SIMULATOR_SIMULATORAPP_H
 
-// these have a tricky interconnectedness, keep in that order
-#include <GL/glew.h>
-#include <GL/gl.h>
+// these are interconnected, keep in that order
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
 #include <string>
@@ -19,6 +18,7 @@ class SimulatorApp {
 private:
     GLFWwindow* window;
     GLFWwindow* initializeWindow(int width, int height, const std::string& title);
+    static void handleWindowError(int error, const char* description);
 
     TrophyShader* shader;
 
