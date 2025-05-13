@@ -19,6 +19,7 @@ private:
     GLFWwindow* window;
     GLFWwindow* initializeWindow(int width, int height, const std::string& title);
     static void handleWindowError(int error, const char* description);
+    void handleInput();
 
     TrophyShader* shader;
 

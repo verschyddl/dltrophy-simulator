@@ -67,6 +67,23 @@ void SimulatorApp::handleWindowError(int error, const char* description) {
 }
 
 void SimulatorApp::run() {
+    // Create vertex array object and vertex buffer object
+    unsigned int vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    // Setup triangle vertices
+    float vertices[] = {
+            -0.5f, -0.5f, 0.0f,
+            0.5f, -0.5f, 0.0f,
+            0.0f,  0.5f, 0.0f
+    };
+
+    // Fill vertex buffer
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
 
     while (!glfwWindowShouldClose(window)) {
 
@@ -75,15 +92,43 @@ void SimulatorApp::run() {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        ImGui::Begin("Fragment Shader Example");
+        ImGui::Text("This is a window with a fragment shader!");
+        ImGui::End();
 
         shader->use();
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
 
         handleUdpMessages();
+        handleInput();
     }
 
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     glfwTerminate();
+}
+
+void SimulatorApp::handleInput() {
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, true);
+    }
+
+    double mouseX, mouseY;
+    glfwGetCursorPos(window, &mouseX, &mouseY);
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        std::cout << "Mouse Down Left @ (" << mouseX << ", " << mouseY << ")" << std::endl;
+    }
 }
 
 void SimulatorApp::handleUdpMessages() {

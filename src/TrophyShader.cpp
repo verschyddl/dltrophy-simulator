@@ -15,30 +15,6 @@ TrophyShader::TrophyShader(int width, int height) {
     fragment.read(fragment_shader_path);
     createProgram();
 
-/*
-    // Create vertex buffer
-    GLfloat vertices[] = {
-            -0.9f, -0.9f,
-            0.9f, -0.9f,
-            0.0f,  0.9f
-    };
-
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Compile shaders and create program
-    GLuint program = createProgram(vertexShaderSource, fragmentShaderSource);
-    if (!program) {
-        std::cerr << "Failed to create shader program" << std::endl;
-        return -1;
-    }
-
-    GLint positionAttrib = glGetAttribLocation(program, "position");
-    glEnableVertexAttribArray(positionAttrib);
-    glVertexAttribPointer(positionAttrib, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-*/
     glViewport(0, 0, width, height);
 }
 
