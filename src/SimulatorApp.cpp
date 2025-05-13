@@ -19,7 +19,7 @@ SimulatorApp::SimulatorApp(int width, int height, int port) {
     std::cout << "Check OpenGL Version: " << glVersion << std::endl;
 
     if ((void*)glCreateShader == nullptr) {
-        throw std::runtime_error("OpenGL not properly loaded - bad. bye.");
+        throw std::runtime_error("OpenGL not actually loaded - bad.");
     };
 
     shader = new TrophyShader(width, height);
@@ -44,8 +44,6 @@ GLFWwindow* SimulatorApp::initializeWindow(int width, int height, const std::str
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-////    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-////    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 
     window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
 
@@ -53,11 +51,6 @@ GLFWwindow* SimulatorApp::initializeWindow(int width, int height, const std::str
         glfwTerminate();
         throw std::runtime_error("Could not create GLFW window.");
     }
-
-    // just for checking
-    auto api = glfwGetWindowAttrib(window, GLFW_CLIENT_API);
-    auto maj = glfwGetWindowAttrib(window, GLFW_CONTEXT_VERSION_MAJOR);
-    auto min = glfwGetWindowAttrib(window, GLFW_CONTEXT_VERSION_MINOR);
 
     glfwMakeContextCurrent(window);
 
@@ -75,15 +68,13 @@ void SimulatorApp::handleWindowError(int error, const char* description) {
 
 void SimulatorApp::run() {
 
-    glClear(GL_COLOR_BUFFER_BIT);
-
     while (!glfwWindowShouldClose(window)) {
 
         glfwPollEvents();
 
-//        ImGui_ImplOpenGL3_NewFrame();
-//        ImGui_ImplGlfw_NewFrame();
-//        ImGui::NewFrame();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
         shader->use();
 
