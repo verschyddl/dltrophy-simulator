@@ -13,6 +13,7 @@
 #include "UdpReceiver.h"
 #include "TrophyState.h"
 #include "TrophyShader.h"
+#include "Config.h"
 
 class SimulatorApp {
 private:
@@ -20,13 +21,21 @@ private:
     GLFWwindow* initializeWindow(int width, int height, const std::string& title);
     static void handleWindowError(int error, const char* description);
     void handleInput();
+    void buildImguiControls();
 
     TrophyShader* shader;
+
+    float startTime;
+    float currentTime;
+    float handleElapsedTime();
 
     TrophyState state = {};
 
     UdpReceiver* receiver;
     void handleUdpMessages();
+
+    const std::string config_file = "persisted.config";
+    Config config;
 
 public:
     SimulatorApp(int width, int height, int port);

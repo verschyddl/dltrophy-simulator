@@ -4,7 +4,7 @@
 int main() {
 
     try {
-        SimulatorApp app(1280, 1080, 3413);
+        SimulatorApp app(1280, 720, 3413);
         app.run();
         return 0;
     }

@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
+
 project(dltrophy_simulator)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -17,6 +18,13 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glfw)
 
 FetchContent_Declare(
+        glm
+        GIT_REPOSITORY https://github.com/g-truc/glm.git
+        GIT_TAG        1.0.1
+)
+FetchContent_MakeAvailable(glm)
+
+FetchContent_Declare(
         imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
         GIT_TAG        docking
@@ -32,6 +40,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(min_sock)
 
+FetchContent_Declare(
+        json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG        v3.11.0
+)
+
+FetchContent_MakeAvailable(json)
+
 # copy the shader sources into the build
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
@@ -46,6 +62,8 @@ add_executable(${PROJECT_NAME}
         src/SimulatorApp.h
         src/TrophyShader.cpp
         src/TrophyShader.h
+        src/Config.cpp
+        src/Config.h
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -58,15 +76,20 @@ target_sources(${PROJECT_NAME} PRIVATE
         ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 target_include_directories(${PROJECT_NAME}
+        PUBLIC thirdparty/glad/include
+        # PUBLIC ${glm_SOURCE_DIR} # <-- #include <glm/glm.hpp> still invalid?
         PUBLIC ${imgui_SOURCE_DIR}
         PUBLIC ${imgui_SOURCE_DIR}/backends
-        PUBLIC thirdparty/glad/include
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         glfw
         OpenGL::GL
+        glm::glm
         MinimalSocket
+        nlohmann_json::nlohmann_json
 )
 
+
+# also, some tools for testing, debugging or wholesome jux
 add_subdirectory(tools)

@@ -6,41 +6,13 @@
 #define DLTROPHY_SIMULATOR_TROPHYSHADER_H
 
 #include <string>
-#include <filesystem>
-#include <fstream>
-#include <optional>
 #include <utility>
+#include <vector>
+
 #include <glad/gl.h>
+#include "../cmake-build-debug/_deps/glm-src/glm/vec2.hpp"
 
-struct ShaderMeta {
-    GLenum type;
-    std::string source;
-    GLuint id = 0;
-    std::string error;
-
-    explicit ShaderMeta(GLenum type): type(type) {}
-
-    operator GLuint() const {
-        return id;
-    }
-
-    void read(const std::string& path) {
-        std::ifstream file(path);
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        source = buffer.str();
-        file.close();
-    }
-};
-
-struct ProgramMeta {
-    GLuint id;
-    std::string error;
-
-    operator GLuint() const {
-        return id;
-    }
-};
+#include "shaderHelpers.h"
 
 class TrophyShader {
 
@@ -50,15 +22,23 @@ private:
     ProgramMeta program;
     void createProgram();
 
+    GLuint vertexArrayObject = 0;
+    GLuint vertexBufferObject = 0;
+    void initVertices();
+    static std::array<float, 18> createQuadVertices();
+
+    // TODO: think about unified handling of uniforms... somehow... someday...
+    Uniform<float> iTime = Uniform<float>("iTime");
+    Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
+
 public:
     TrophyShader(int width, int height);
     ~TrophyShader();
 
-    void use();
-    void update();
+    void use(float time);
     void draw();
 
-    static void ensure_path(const std::string&);
+    void onRectChange();
 };
 
 #endif //DLTROPHY_SIMULATOR_TROPHYSHADER_H

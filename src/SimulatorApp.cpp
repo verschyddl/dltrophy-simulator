@@ -22,15 +22,22 @@ SimulatorApp::SimulatorApp(int width, int height, int port) {
         throw std::runtime_error("OpenGL not actually loaded - bad.");
     };
 
-    shader = new TrophyShader(width, height);
+    config = Config::initialize(config_file, window);
+
+    shader = new TrophyShader(config);
 
     receiver = new UdpReceiver(port);
 }
 
 SimulatorApp::~SimulatorApp() {
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     if (window) {
         glfwDestroyWindow(window);
     }
+
     glfwTerminate();
 }
 
@@ -67,60 +74,33 @@ void SimulatorApp::handleWindowError(int error, const char* description) {
 }
 
 void SimulatorApp::run() {
-    // Create vertex array object and vertex buffer object
-    unsigned int vao, vbo;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-    // Setup triangle vertices
-    float vertices[] = {
-            -0.5f, -0.5f, 0.0f,
-            0.5f, -0.5f, 0.0f,
-            0.0f,  0.5f, 0.0f
-    };
 
-    // Fill vertex buffer
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    startTime = static_cast<float>(glfwGetTime());
 
     while (!glfwWindowShouldClose(window)) {
 
-        glfwPollEvents();
+        buildImguiControls();
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        ImGui::Begin("Fragment Shader Example");
-        ImGui::Text("This is a window with a fragment shader!");
-        ImGui::End();
-
-        shader->use();
-        glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        auto elapsedTime = handleElapsedTime();
+        shader->use(elapsedTime);
+        shader->draw();
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
 
-        handleUdpMessages();
+        glfwPollEvents();
         handleInput();
+
+        handleUdpMessages();
     }
 
-    glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &vbo);
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
-    glfwTerminate();
+    config.store(window);
 }
 
 void SimulatorApp::handleInput() {
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, true);
     }
 
@@ -139,4 +119,20 @@ void SimulatorApp::handleUdpMessages() {
     std::cout << "GOT PACKAGE \"" << package.value().received_message
               << "\" from: " << to_string(package.value().sender)
               << std::endl;
+}
+
+void SimulatorApp::buildImguiControls() {
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::Begin("Fragment Shader Example");
+    ImGui::Text("This is a window with a fragment shader!");
+    ImGui::End();
+
+}
+
+float SimulatorApp::handleElapsedTime() {
+    currentTime = static_cast<float>(glfwGetTime());
+    return currentTime - startTime;
 }

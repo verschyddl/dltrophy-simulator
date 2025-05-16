@@ -1,10 +1,15 @@
-#version 300 es
+#version 330 core
 
 precision highp float;
 
+uniform float iTime;
+uniform vec4 iRect;
+
+vec3 c = vec3(1,0,-1);
+
 void main() {
-    // vec2 uv = fragCoord/iResolution.xy;
-    // vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
-    // gl_FragColor = vec4(col, 1.);
-    gl_FragColor = vec4(0.4, 0.1, 0.7, 1.0);
+    vec2 uv = (2. * gl_FragCoord.xy - iResolution) / iResolution.y;
+    vec3 borderColor = vec3(0.4, 0.2 + 0.2 * sin(iTime) , 0.7);
+    vec3 col = mix(c.yyy, borderColor, smoothstep(0.95, 1., length(uv)));
+    gl_FragColor = vec4(col, 1.0);
 }
