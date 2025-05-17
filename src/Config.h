@@ -10,14 +10,19 @@
 #include <glm/vec4.hpp>
 #include <filesystem>
 
-struct Rect {
+struct Size {
     int width;
     int height;
+
+    explicit operator bool() const {
+        return width > 0 && height > 0;
+    }
+};
+
+struct Rect : public Size {
     int x;
     int y;
 
-//    static std::unique_ptr<Rect> query(GLFWwindow* window) {
-//        auto result = std::make_unique<Rect>();
     static Rect query(GLFWwindow* window) {
         Rect result{};
         glfwGetWindowSize(window, &result.width, &result.height);
@@ -26,16 +31,47 @@ struct Rect {
     }
 };
 
-struct Config {
+struct RelativeRect {
+    float width;
+    float height;
+    float x;
+    float y;
+};
+
+class Config {
 public:
     std::filesystem::path path;
 
+    explicit Config(const std::string& filepath);
+
+    void restore(GLFWwindow* window);
     void store(GLFWwindow* window) const;
-    static Config initialize(const std::string& path, GLFWwindow* window);
+
+    bool wasRead() { return didRead; };
+
+    Rect shaderRect(Size resolution) {
+        return Rect{
+            {
+                .width = static_cast<int>(shaderView.width * resolution.width),
+                .height = static_cast<int>(shaderView.height * resolution.height),
+            },
+            static_cast<int>(shaderView.x * resolution.width),
+            static_cast<int>(shaderView.y * resolution.height),
+        };
+    };
 
 private:
-    std::optional<Rect> tryReadFile();
-};
+    bool didRead = false;
+    std::optional<Rect> windowRect = std::nullopt;
+    RelativeRect shaderView{
+            .width = 0.4,
+            .height = 0.8,
+            .x = 0.5,
+            .y = 0.1,
+    };
 
+    bool tryReadFile();
+
+};
 
 #endif //DLTROPHY_SIMULATOR_CONFIG_H

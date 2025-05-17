@@ -8,11 +8,14 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <functional>
 
 #include <glad/gl.h>
-#include "../cmake-build-debug/_deps/glm-src/glm/vec2.hpp"
+#include <glm/vec2.hpp>
 
 #include "shaderHelpers.h"
+#include "Config.h"
+#include "TrophyState.h"
 
 class TrophyShader {
 
@@ -27,18 +30,23 @@ private:
     void initVertices();
     static std::array<float, 18> createQuadVertices();
 
+    GLuint stateBufferId = 0;
+    GLuint stateTextureBufferId = 0;
+    TrophyState *state;
+    void initStateInput();
+
     // TODO: think about unified handling of uniforms... somehow... someday...
     Uniform<float> iTime = Uniform<float>("iTime");
     Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
 
 public:
-    TrophyShader(int width, int height);
+    TrophyShader(Size resolution, Config config, TrophyState *state);
     ~TrophyShader();
 
     void use(float time);
     void draw();
-
-    void onRectChange();
+    void assertCompileSuccess(const std::function<void(const std::string&)>& callback);
+    void onRectChange(Size resolution, Config config);
 };
 
 #endif //DLTROPHY_SIMULATOR_TROPHYSHADER_H

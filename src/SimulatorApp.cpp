@@ -10,7 +10,9 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-SimulatorApp::SimulatorApp(int width, int height, int port) {
+SimulatorApp::SimulatorApp(int width, int height, int port)
+: config(config_file) {
+
     window = initializeWindow(width, height,"QM's DL Trophy Smiulator");
 
     gladLoadGL(glfwGetProcAddress);
@@ -22,9 +24,13 @@ SimulatorApp::SimulatorApp(int width, int height, int port) {
         throw std::runtime_error("OpenGL not actually loaded - bad.");
     };
 
-    config = Config::initialize(config_file, window);
+    config.restore(window);
+    auto rect = Rect::query(window);
 
-    shader = new TrophyShader(config);
+    state = new TrophyState;
+
+    shader = new TrophyShader(rect, config, state);
+    shader->assertCompileSuccess(showError);
 
     receiver = new UdpReceiver(port);
 }
@@ -43,7 +49,7 @@ SimulatorApp::~SimulatorApp() {
 
 GLFWwindow* SimulatorApp::initializeWindow(int width, int height, const std::string& title) {
     if (!glfwInit()) {
-        throw std::runtime_error("Cannot initialize GLFW");
+        throw std::runtime_error("Cannot restore GLFW");
     }
 
     glfwSetErrorCallback(handleWindowError);
@@ -83,6 +89,7 @@ void SimulatorApp::run() {
 
         auto elapsedTime = handleElapsedTime();
         shader->use(elapsedTime);
+
         shader->draw();
 
         ImGui::Render();
@@ -94,6 +101,9 @@ void SimulatorApp::run() {
         handleInput();
 
         handleUdpMessages();
+
+        // TODO: DEV STUFF - REMOVE ASAP
+        state->randomizeForDebugging();
     }
 
     config.store(window);
@@ -136,3 +146,15 @@ float SimulatorApp::handleElapsedTime() {
     currentTime = static_cast<float>(glfwGetTime());
     return currentTime - startTime;
 }
+
+// there should be many implementations, but this one is enough for now
+#ifdef _WIN32
+#include <windows.h>
+    void SimulatorApp::showError(const std::string &message) {
+        MessageBoxA(nullptr, message.c_str(), "Error", MB_OK | MB_ICONERROR);
+    }
+#else
+    void SimulatorApp::showError(const std::string &message) {
+        std::cerr << message << std::endl;
+    }
+#endif

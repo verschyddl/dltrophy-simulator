@@ -9,7 +9,8 @@
 const std::string vertex_shader_path = "./shaders/vertex.glsl";
 const std::string fragment_shader_path = "./shaders/fragment.glsl";
 
-TrophyShader::TrophyShader(int width, int height) {
+TrophyShader::TrophyShader(Size resolution, Config config, TrophyState *state)
+: state(state) {
     vertex.read(vertex_shader_path);
     fragment.read(fragment_shader_path);
     createProgram();
@@ -17,12 +18,16 @@ TrophyShader::TrophyShader(int width, int height) {
     glUseProgram(program);
     iTime.loadLocation(program);
     iRect.loadLocation(program);
-    onRectChange();
+
+    initStateInput();
+
+    onRectChange(resolution, config);
 }
 
-void TrophyShader::onRectChange() {
-    iRect.value = glm::vec2(width, height);
-    glViewport(0, 0, width, height);
+void TrophyShader::onRectChange(Size resolution, Config config) {
+    auto rect = config.shaderRect(resolution);
+    iRect.value = glm::vec4(rect.x, rect.y, rect.width, rect.height);
+    glViewport(rect.x, rect.y, rect.width, rect.height);
     initVertices();
 }
 
@@ -33,6 +38,9 @@ TrophyShader::~TrophyShader() {
 
     glDeleteVertexArrays(1, &vertexArrayObject);
     glDeleteBuffers(1, &vertexBufferObject);
+
+    glDeleteBuffers(1, &stateBufferId);
+    glDeleteTextures(1, &stateTextureBufferId);
 }
 
 void compileShader(ShaderMeta& shader) {
@@ -71,6 +79,22 @@ void TrophyShader::createProgram() {
 
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+}
+
+void TrophyShader::assertCompileSuccess(const std::function<void(const std::string&)>& callback) {
+    std::string message;
+    if (!vertex.error.empty()) {
+        message += "Vertex Shader Error:\n\n" + vertex.error + "\n";
+    }
+    if (!fragment.error.empty()) {
+        message += "Fragment Shader Error:\n\n" + fragment.error + "\n";
+    }
+    if (message.empty() && !program.error.empty()) {
+        message += "Shader Linker Error:\n\n" + program.error + "\n";
+    }
+    if (!message.empty()) {
+        callback(message);
+    }
 }
 
 std::array<float, 18> TrophyShader::createQuadVertices() {
@@ -115,8 +139,31 @@ void TrophyShader::initVertices() {
             GL_FALSE,
             3 * sizeof(float),
             (void*)0
-    );
+            );
     glEnableVertexAttribArray(positionAttributeLocation);
+}
+
+void TrophyShader::initStateInput() {
+    // wir wollen UNIFORM BUFFER, nicht BUFFER TEXTURE OBJECT.
+    // ... glaub ich.
+    glGenBuffers(1, &stateBufferId);
+    glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
+    glBufferData(GL_UNIFORM_BUFFER,
+                 sizeof(state->leds),
+                 nullptr,
+                 GL_STATIC_DRAW
+                 );
+    GLuint bindingPoint = 0;
+    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, stateBufferId);
+
+    // glBindBuffer(GL_UNIFORM_BUFFER, 0); // <-- unbind again
+
+//    glGenTextures(1, &stateTextureBufferId);
+//    glBindTexture(GL_TEXTURE_BUFFER, stateTextureBufferId);
+//    glTexBuffer(GL_TEXTURE_BUFFER,
+//                GL_RGB32UI,
+//                stateBufferId
+//                );
 }
 
 void TrophyShader::use(float time) {
@@ -129,9 +176,23 @@ void TrophyShader::use(float time) {
 
     iTime.set(time);
     iRect.set();
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_BUFFER, stateTextureBufferId);
+
 }
 
 void TrophyShader::draw() {
+    auto ledData = state->leds.data();
+    glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
+    glBufferSubData(GL_UNIFORM_BUFFER,
+                    0,
+                    sizeof(state->leds),
+                    state->leds.data()
+                    );
+
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, stateBufferId);
+
     // guess this re-binding is unnecessary... anyway.
     glBindVertexArray(vertexArrayObject);
 

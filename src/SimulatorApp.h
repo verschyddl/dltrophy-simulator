@@ -29,13 +29,15 @@ private:
     float currentTime;
     float handleElapsedTime();
 
-    TrophyState state = {};
+    TrophyState* state;
 
     UdpReceiver* receiver;
     void handleUdpMessages();
 
     const std::string config_file = "persisted.config";
     Config config;
+
+    static void showError(const std::string & message);
 
 public:
     SimulatorApp(int width, int height, int port);
