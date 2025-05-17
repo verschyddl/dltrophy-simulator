@@ -144,21 +144,24 @@ void TrophyShader::initVertices() {
 }
 
 void TrophyShader::initStateInput() {
-    // wir wollen UNIFORM BUFFER, nicht BUFFER TEXTURE OBJECT.
-    // ... glaub ich.
+    // Versuch 1: per Uniform Buffer (UBO)
     glGenBuffers(1, &stateBufferId);
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     glBufferData(GL_UNIFORM_BUFFER,
-                 sizeof(state->leds),
+                 state->alignedSize(),
                  nullptr,
-                 GL_STATIC_DRAW
+                 GL_DYNAMIC_DRAW // will update frequently -> memory management
                  );
-    GLuint bindingPoint = 0;
-    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, stateBufferId);
+//    GLuint bindingPoint = 0;
+//    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, stateBufferId);
+    // TODO: find out what this would be for
+    GLuint stateBlockIndex = glGetUniformBlockIndex(program, "RGBBuffer");
+    glUniformBlockBinding(program, stateBlockIndex, 0);
 
-    // glBindBuffer(GL_UNIFORM_BUFFER, 0); // <-- unbind again
+    glBindBuffer(GL_UNIFORM_BUFFER, 0); // <-- unbind again (orphaning?)
 
-//    glGenTextures(1, &stateTextureBufferId);
+    // TODO: remove the texture when we keep the UBO approach
+    glGenTextures(1, &stateTextureBufferId);
 //    glBindTexture(GL_TEXTURE_BUFFER, stateTextureBufferId);
 //    glTexBuffer(GL_TEXTURE_BUFFER,
 //                GL_RGB32UI,
@@ -177,20 +180,24 @@ void TrophyShader::use(float time) {
     iTime.set(time);
     iRect.set();
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_BUFFER, stateTextureBufferId);
+
+//    glActiveTexture(GL_TEXTURE0);
+//    glBindTexture(GL_TEXTURE_BUFFER, stateTextureBufferId);
 
 }
 
 void TrophyShader::draw() {
-    auto ledData = state->leds.data();
+    state->randomizeForDebugging();
+
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     glBufferSubData(GL_UNIFORM_BUFFER,
                     0,
                     sizeof(state->leds),
                     state->leds.data()
                     );
+    glBindBuffer(GL_UNIFORM_BUFFER, 0); // orphan again
 
+    // bind to the binding point (cannot be in layout in opengl 3.3 - anyway.)
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, stateBufferId);
 
     // guess this re-binding is unnecessary... anyway.
