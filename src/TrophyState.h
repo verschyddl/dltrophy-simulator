@@ -8,26 +8,27 @@
 #include <cstdint>
 #include <array>
 #include <span>
+#include "glm/vec3.hpp"
 
 struct LED {
 
-    LED(uint8_t R, uint8_t G, uint8_t B) {
+    LED(GLuint R, GLuint G, GLuint B) {
         set(R, G, B);
     }
 
-    LED(uint8_t W) {
+    LED(GLuint W) {
         set(W);
     }
 
     LED() = default;
 
-    void set(uint8_t R, uint8_t G, uint8_t B) {
+    void set(GLuint R, GLuint G, GLuint B) {
         r = R;
         g = G;
         b = B;
     }
 
-    void set(uint8_t w) {
+    void set(GLuint w) {
         r = w;
         g = w;
         b = w;
@@ -37,15 +38,15 @@ struct LED {
         set(led.r, led.g, led.b);
     }
 
-    uint8_t gray() {
+    GLuint gray() {
         float w = 0.299 * r + 0.587 * g + 0.114 * b;
-        return static_cast<uint8_t>(w);
+        return static_cast<GLuint>(w);
     }
 
 private:
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
+    GLuint r;
+    GLuint g;
+    GLuint b;
 };
 
 struct TrophyState {
@@ -57,15 +58,24 @@ struct TrophyState {
 
     std::array<LED, N_LEDS> leds;
     std::array<bool, N_LEDS> is_single_color;
+    std::array<glm::vec3, N_LEDS> position;
 
     TrophyState() {
         for (int i = 0; i < N_LEDS; i++) {
             leds[i] = LED();
             is_single_color[i] = i > N_RGB_LEDS;
+
+            // TODO: define position vector correctly
+            position[i] = glm::vec3(
+                    0.0f,
+                    0.0f,
+                    0.0f
+                    );
         }
+
     };
 
-    void set(size_t index, uint8_t r = 0, uint8_t g = 0, uint8_t b = 0) {
+    void set(size_t index, GLuint r = 0, GLuint g = 0, GLuint b = 0) {
         if (index >= N_LEDS) {
             throw std::runtime_error(
                     std::format("Trophy has no LED at index {0}", index)
@@ -78,10 +88,15 @@ struct TrophyState {
         }
     }
 
-    size_t alignedSize() {
-        // to put 3 uint8_t into alignments of 4
+    size_t alignedSize() const {
+        // to put 3 GLuint into alignments of 4
         // shader might do some unfug otherwise
-        return leds.size() * 4;
+        return leds.size() * 4 * sizeof(GLuint);
+    }
+
+    size_t alignedFloatSize() const {
+        // vec3 is 12 bytes, but need to align to 16.
+        return N_LEDS * 4 * sizeof(float);
     }
 
     std::span<LED> logo() {
@@ -115,9 +130,9 @@ struct TrophyState {
 
     void randomizeForDebugging() {
         for (int i = 0; i < N_LEDS; i++) {
-            uint8_t r = std::rand() % 256;
-            uint8_t g = std::rand() % 256;
-            uint8_t b = std::rand() % 256;
+            GLuint r = std::rand() % 256;
+            GLuint g = std::rand() % 256;
+            GLuint b = std::rand() % 256;
             set(i, r, g, b);
         }
     }

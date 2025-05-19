@@ -30,10 +30,12 @@ private:
     void initVertices();
     static std::array<float, 18> createQuadVertices();
 
-    GLuint stateBufferId = 0;
-    GLuint stateTextureBufferId = 0;
     TrophyState *state;
-    void initStateInput();
+    GLuint stateBufferId = 0;
+    GLuint stateBlockIndex = -1;
+    GLuint positionBufferId = 0;
+    GLuint positionBlockIndex = -1;
+    void initUniformBuffers();
 
     // TODO: think about unified handling of uniforms... somehow... someday...
     Uniform<float> iTime = Uniform<float>("iTime");
@@ -43,8 +45,8 @@ public:
     TrophyShader(Size resolution, Config config, TrophyState *state);
     ~TrophyShader();
 
-    void use(float time);
-    void draw();
+    void use();
+    void draw(float time);
     void assertCompileSuccess(const std::function<void(const std::string&)>& callback);
     void onRectChange(Size resolution, Config config);
 };

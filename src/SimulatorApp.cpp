@@ -83,14 +83,16 @@ void SimulatorApp::run() {
 
     startTime = static_cast<float>(glfwGetTime());
 
+    // TODO: DEV STUFF - REMOVE ASAP
+    state->randomizeForDebugging();
+
     while (!glfwWindowShouldClose(window)) {
 
         buildImguiControls();
 
+        shader->use();
         auto elapsedTime = handleElapsedTime();
-        shader->use(elapsedTime);
-
-        shader->draw();
+        shader->draw(elapsedTime);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -101,9 +103,6 @@ void SimulatorApp::run() {
         handleInput();
 
         handleUdpMessages();
-
-        // TODO: DEV STUFF - REMOVE ASAP
-        state->randomizeForDebugging();
     }
 
     config.store(window);

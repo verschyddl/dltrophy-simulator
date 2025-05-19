@@ -19,7 +19,7 @@ TrophyShader::TrophyShader(Size resolution, Config config, TrophyState *state)
     iTime.loadLocation(program);
     iRect.loadLocation(program);
 
-    initStateInput();
+    initUniformBuffers();
 
     onRectChange(resolution, config);
 }
@@ -40,7 +40,7 @@ TrophyShader::~TrophyShader() {
     glDeleteBuffers(1, &vertexBufferObject);
 
     glDeleteBuffers(1, &stateBufferId);
-    glDeleteTextures(1, &stateTextureBufferId);
+    glDeleteBuffers(1, &positionBufferId);
 }
 
 void compileShader(ShaderMeta& shader) {
@@ -143,33 +143,42 @@ void TrophyShader::initVertices() {
     glEnableVertexAttribArray(positionAttributeLocation);
 }
 
-void TrophyShader::initStateInput() {
-    // Versuch 1: per Uniform Buffer (UBO)
-    glGenBuffers(1, &stateBufferId);
+void TrophyShader::initUniformBuffers() {
+    // pass LED RGB state and their position as Uniform Buffer Object
+    // memory management: colors update frequently, positions never.
+    // -> two different UBOs
+    GLuint bufferId[2];
+    glGenBuffers(2, &bufferId[0]);
+    stateBufferId = bufferId[0];
+    positionBufferId = bufferId[1];
+
+    stateBlockIndex = glGetUniformBlockIndex(program, "StateBuffer");
+    positionBlockIndex = glGetUniformBlockIndex(program, "TrophyDefinition");
+
+    // Binding Points are only used for setup (linking buffers to blocks)
+    GLuint bindingPoint = 0;
+
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     glBufferData(GL_UNIFORM_BUFFER,
                  state->alignedSize(),
-                 nullptr,
-                 GL_DYNAMIC_DRAW // will update frequently -> memory management
-                 );
-//    GLuint bindingPoint = 0;
-//    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, stateBufferId);
-    // TODO: find out what this would be for
-    GLuint stateBlockIndex = glGetUniformBlockIndex(program, "RGBBuffer");
-    glUniformBlockBinding(program, stateBlockIndex, 0);
+                 NULL,
+                 GL_DYNAMIC_DRAW);
+    glUniformBlockBinding(program, stateBlockIndex, bindingPoint);
+    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, stateBufferId);
 
-    glBindBuffer(GL_UNIFORM_BUFFER, 0); // <-- unbind again (orphaning?)
+    bindingPoint++;
+    glBindBuffer(GL_UNIFORM_BUFFER, positionBufferId);
+    glBufferData(GL_UNIFORM_BUFFER,
+                 state->alignedFloatSize(),
+                 state->position.data(),
+                 GL_STATIC_DRAW);
+    glUniformBlockBinding(program, positionBlockIndex, bindingPoint);
+    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, positionBufferId);
 
-    // TODO: remove the texture when we keep the UBO approach
-    glGenTextures(1, &stateTextureBufferId);
-//    glBindTexture(GL_TEXTURE_BUFFER, stateTextureBufferId);
-//    glTexBuffer(GL_TEXTURE_BUFFER,
-//                GL_RGB32UI,
-//                stateBufferId
-//                );
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
-void TrophyShader::use(float time) {
+void TrophyShader::use() {
     if (!program.error.empty()) {
         throw std::runtime_error("Cannot use program, because linking failed.");
     }
@@ -177,31 +186,22 @@ void TrophyShader::use(float time) {
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(program.id);
 
-    iTime.set(time);
+    // guess this re-binding is unnecessary... anyway.
+    // glBindVertexArray(vertexArrayObject);
+
     iRect.set();
-
-
-//    glActiveTexture(GL_TEXTURE0);
-//    glBindTexture(GL_TEXTURE_BUFFER, stateTextureBufferId);
-
 }
 
-void TrophyShader::draw() {
-    state->randomizeForDebugging();
+void TrophyShader::draw(float time) {
+    iTime.set(time);
 
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     glBufferSubData(GL_UNIFORM_BUFFER,
                     0,
-                    sizeof(state->leds),
+                    state->alignedSize(),
                     state->leds.data()
                     );
     glBindBuffer(GL_UNIFORM_BUFFER, 0); // orphan again
-
-    // bind to the binding point (cannot be in layout in opengl 3.3 - anyway.)
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, stateBufferId);
-
-    // guess this re-binding is unnecessary... anyway.
-    glBindVertexArray(vertexArrayObject);
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
