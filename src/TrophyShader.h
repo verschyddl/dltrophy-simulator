@@ -32,9 +32,7 @@ private:
 
     TrophyState *state;
     GLuint stateBufferId = 0;
-    GLuint stateBlockIndex = -1;
-    GLuint positionBufferId = 0;
-    GLuint positionBlockIndex = -1;
+    GLuint definitionBufferId = 0;
     void initUniformBuffers();
 
     // TODO: think about unified handling of uniforms... somehow... someday...

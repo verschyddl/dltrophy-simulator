@@ -40,7 +40,7 @@ TrophyShader::~TrophyShader() {
     glDeleteBuffers(1, &vertexBufferObject);
 
     glDeleteBuffers(1, &stateBufferId);
-    glDeleteBuffers(1, &positionBufferId);
+    glDeleteBuffers(1, &definitionBufferId);
 }
 
 void compileShader(ShaderMeta& shader) {
@@ -144,36 +144,47 @@ void TrophyShader::initVertices() {
 }
 
 void TrophyShader::initUniformBuffers() {
-    // pass LED RGB state and their position as Uniform Buffer Object
-    // memory management: colors update frequently, positions never.
-    // -> two different UBOs
+    // pass LEDs as Uniform Buffers, but separated in
+    // - the Definition (is set once)
+    // - the RGB State (is updated frequently)
+
     GLuint bufferId[2];
     glGenBuffers(2, &bufferId[0]);
     stateBufferId = bufferId[0];
-    positionBufferId = bufferId[1];
+    definitionBufferId = bufferId[1];
 
-    stateBlockIndex = glGetUniformBlockIndex(program, "StateBuffer");
-    positionBlockIndex = glGetUniformBlockIndex(program, "TrophyDefinition");
-
-    // Binding Points are only used for setup (linking buffers to blocks)
+    GLuint blockIndex;
     GLuint bindingPoint = 0;
 
-    glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
+    blockIndex = glGetUniformBlockIndex(program, "TrophyDefinition");
+    glUniformBlockBinding(program, blockIndex, bindingPoint);
+    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, definitionBufferId);
+    glBindBuffer(GL_UNIFORM_BUFFER, definitionBufferId);
+    GLuint nLeds = TrophyState::N_LEDS;
     glBufferData(GL_UNIFORM_BUFFER,
-                 state->alignedSize(),
+                 state->totalDefinitionSize(),
                  NULL,
-                 GL_DYNAMIC_DRAW);
-    glUniformBlockBinding(program, stateBlockIndex, bindingPoint);
-    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, stateBufferId);
+                 GL_STATIC_DRAW);
+    glBufferSubData(GL_UNIFORM_BUFFER,
+                    0,
+                    sizeof(nLeds),
+                    &nLeds
+    );
+    glBufferSubData(GL_UNIFORM_BUFFER,
+                    sizeof(nLeds),
+                    sizeof(state->position),
+                    state->position.data()
+    );
 
     bindingPoint++;
-    glBindBuffer(GL_UNIFORM_BUFFER, positionBufferId);
+    blockIndex = glGetUniformBlockIndex(program, "StateBuffer");
+    glUniformBlockBinding(program, blockIndex, bindingPoint);
+    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, stateBufferId);
+    glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     glBufferData(GL_UNIFORM_BUFFER,
-                 state->alignedFloatSize(),
-                 state->position.data(),
-                 GL_STATIC_DRAW);
-    glUniformBlockBinding(program, positionBlockIndex, bindingPoint);
-    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, positionBufferId);
+                 sizeof(state->leds),
+                 NULL,
+                 GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
@@ -186,9 +197,6 @@ void TrophyShader::use() {
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(program.id);
 
-    // guess this re-binding is unnecessary... anyway.
-    // glBindVertexArray(vertexArrayObject);
-
     iRect.set();
 }
 
@@ -198,7 +206,7 @@ void TrophyShader::draw(float time) {
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     glBufferSubData(GL_UNIFORM_BUFFER,
                     0,
-                    state->alignedSize(),
+                    sizeof(state->leds),
                     state->leds.data()
                     );
     glBindBuffer(GL_UNIFORM_BUFFER, 0); // orphan again

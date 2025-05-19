@@ -64,10 +64,10 @@ private:
     bool didRead = false;
     std::optional<Rect> windowRect = std::nullopt;
     RelativeRect shaderView{
-            .width = 0.4,
-            .height = 0.8,
-            .x = 0.5,
-            .y = 0.1,
+            .width = 0.5,
+            .height = 0.9,
+            .x = 0.47,
+            .y = 0.05,
     };
 
     bool tryReadFile();
