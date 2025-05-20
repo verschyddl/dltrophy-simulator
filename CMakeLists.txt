@@ -64,6 +64,7 @@ add_executable(${PROJECT_NAME}
         src/TrophyShader.h
         src/Config.cpp
         src/Config.h
+        src/Trophy.h
 )
 
 target_sources(${PROJECT_NAME} PRIVATE

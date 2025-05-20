@@ -6,12 +6,12 @@ out vec4 fragColor;
 uniform float iTime;
 uniform vec4 iRect;
 
+const int nLeds = 172;
+
 layout(std140) uniform TrophyDefinition {
     int _nLeds; // TODO: doesn't work - care about later
-    vec4 pos[];
+    vec4 ledPosition[nLeds];
 };
-
-const int nLeds = 172;
 
 struct RGB {
     // we just have RGB LEDs, so do not confuse the 4th component
@@ -41,8 +41,16 @@ void main() {
         return;
     }
 
-    vec3 borderColor = vec3(0.4, 0.2 + 0.2 * sin(iTime) , 0.7);
-    vec3 col = mix(c.yyy, borderColor, smoothstep(0.95, 1., length(uv)));
+    vec3 col, pos;
+    float d;
+    for (int i = 0; i < nLeds; i++) {
+        col = to_vec(ledColor[i]);
+        pos = ledPosition[i].xyz;
+
+        // test rendering
+        d = distance(uv, pos.xy);
+        col *= exp(-0.1 * pow(d, 2));
+    }
 
     RGB led = RGB(25u, 100u, 210u, 0u);
     float n = ceil(sqrt(float(nLeds)));

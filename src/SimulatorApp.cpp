@@ -27,7 +27,8 @@ SimulatorApp::SimulatorApp(int width, int height, int port)
     config.restore(window);
     auto rect = Rect::query(window);
 
-    state = new TrophyState;
+    trophy = new Trophy();
+    state = new TrophyState(trophy);
 
     shader = new TrophyShader(rect, config, state);
     shader->assertCompileSuccess(showError);
@@ -84,7 +85,7 @@ void SimulatorApp::run() {
     startTime = static_cast<float>(glfwGetTime());
 
     // TODO: DEV STUFF - REMOVE ASAP
-    state->randomizeForDebugging();
+    state->randomize();
 
     while (!glfwWindowShouldClose(window)) {
 

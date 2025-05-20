@@ -61,8 +61,6 @@ void compileShader(ShaderMeta& shader) {
 }
 
 void TrophyShader::createProgram() {
-    auto v = glCreateShader(GL_VERTEX_SHADER);
-    auto f = glCreateShader(GL_FRAGMENT_SHADER);
     compileShader(vertex);
     compileShader(fragment);
 
@@ -160,20 +158,19 @@ void TrophyShader::initUniformBuffers() {
     glUniformBlockBinding(program, blockIndex, bindingPoint);
     glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, definitionBufferId);
     glBindBuffer(GL_UNIFORM_BUFFER, definitionBufferId);
-    GLuint nLeds = TrophyState::N_LEDS;
     glBufferData(GL_UNIFORM_BUFFER,
-                 state->totalDefinitionSize(),
+                 state->trophy->alignedSize(),
                  NULL,
                  GL_STATIC_DRAW);
     glBufferSubData(GL_UNIFORM_BUFFER,
                     0,
-                    sizeof(nLeds),
-                    &nLeds
+                    sizeof(state->nLeds),
+                    &state->nLeds
     );
     glBufferSubData(GL_UNIFORM_BUFFER,
-                    sizeof(nLeds),
-                    sizeof(state->position),
-                    state->position.data()
+                    sizeof(state->nLeds),
+                    sizeof(state->trophy->position),
+                    state->trophy->position.data()
     );
 
     bindingPoint++;

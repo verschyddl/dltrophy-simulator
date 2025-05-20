@@ -29,6 +29,7 @@ private:
     float currentTime;
     float handleElapsedTime();
 
+    Trophy* trophy;
     TrophyState* state;
 
     UdpReceiver* receiver;
