@@ -2,8 +2,8 @@
 // Created by qm210 on 10.05.2025.
 //
 
-#ifndef DLTROPHY_SIMULATOR_TROPHYSTATE_H
-#define DLTROPHY_SIMULATOR_TROPHYSTATE_H
+#ifndef DLTROPHY_SIMULATOR_SHADERSTATE_H
+#define DLTROPHY_SIMULATOR_SHADERSTATE_H
 
 #include <cstdint>
 #include <array>
@@ -56,20 +56,41 @@ public:
     }
 };
 
-struct TrophyState {
+struct ShaderOptions {
+    bool showGrid = false;
+
+    // need minimum alignment (GLint = 4 bytes), therefore:
+    bool debug1 = false;
+    bool debug2 = false;
+    bool debug3 = false;
+};
+
+struct ShaderState {
     Trophy* trophy;
     GLuint nLeds;
     std::vector<LED> leds;
 
-    explicit TrophyState(Trophy* trophy):
+    ShaderOptions options {
+        .showGrid = true
+    };
+
+    explicit ShaderState(Trophy* trophy):
         trophy(trophy),
-        nLeds(trophy->N_LEDS)
+        nLeds(trophy->position.size())
         {
             leds.resize(nLeds);
             for (int i = 0; i < nLeds; i++) {
                 leds[i] = LED();
             }
         };
+
+    GLsizeiptr alignedTotalSize() {
+        return alignedSizeForLeds() + sizeof(options);
+    }
+
+    GLsizeiptr alignedSizeForLeds() {
+        return leds.size() * sizeof(leds[0]);
+    }
 
     void set(size_t index, LED led) {
         if (index >= nLeds) {
@@ -114,4 +135,4 @@ struct TrophyState {
     }
 };
 
-#endif //DLTROPHY_SIMULATOR_TROPHYSTATE_H
+#endif //DLTROPHY_SIMULATOR_SHADERSTATE_H

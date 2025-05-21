@@ -65,6 +65,7 @@ add_executable(${PROJECT_NAME}
         src/Config.cpp
         src/Config.h
         src/Trophy.h
+        src/inputHelpers.h
 )
 
 target_sources(${PROJECT_NAME} PRIVATE

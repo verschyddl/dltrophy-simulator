@@ -9,6 +9,8 @@
 #include <array>
 #include <functional>
 #include <cmath>
+#include <iostream>
+#include <iomanip>
 #include "glm/vec3.hpp"
 #include "glm/vec2.hpp"
 #include "glad/gl.h"
@@ -28,10 +30,13 @@ struct Trophy {
     std::array<bool, N_LEDS> is_logo;
     std::array<bool, N_LEDS> is_base;
 
-    static constexpr glm::vec3 logo_center = {0.f, 1.f, 0.f};
-    static constexpr float logo_size = 0.7f;
-    static constexpr glm::vec3 base_center = {0.f, -1.f, 0.f};
-    static constexpr float base_size = 1.5f;
+    static constexpr glm::vec3 logo_center = {0.f, 0.7f, 0.f};
+    static constexpr float logo_width = 1.2f;
+    static constexpr float logo_height = 0.5f;
+    static constexpr glm::vec3 base_center = {0.f, -.5f, 0.f};
+    static constexpr float base_size = 0.3f;
+
+    glm::vec3 pos_min, pos_max;
 
     Trophy() {
         for (int i = 0; i < N_LEDS; i++) {
@@ -45,8 +50,8 @@ struct Trophy {
             if (is_logo[i]) {
                 relative = parse_logo_order(i);
                 absolute = glm::vec3(
-                        logo_center.x + logo_size * relative.x,
-                        logo_center.y + logo_size * relative.y,
+                        logo_center.x + logo_width * relative.x,
+                        logo_center.y + logo_height * relative.y,
                         logo_center.z
                 );
             }
@@ -62,7 +67,7 @@ struct Trophy {
                 absolute = glm::vec3(
                         0.0f,
                         0.0f,
-                        -2.1f // irgendwoanders hin
+                        -2.1f // irgendwoanders hin halt
                 );
             }
 
@@ -72,6 +77,13 @@ struct Trophy {
                 absolute.z,
                 0.f
             };
+
+            pos_min.x = std::min(pos_min.x, position[i].x);
+            pos_min.y = std::min(pos_min.y, position[i].y);
+            pos_min.z = std::min(pos_min.z, position[i].z);
+            pos_max.x = std::max(pos_max.x, position[i].x);
+            pos_max.y = std::max(pos_max.y, position[i].y);
+            pos_max.z = std::max(pos_max.z, position[i].z);
         }
     }
 
@@ -136,10 +148,46 @@ struct Trophy {
         }
     }
 
-    size_t alignedSize() {
-        // first element is N_LEDS as uint -> 4 bytes
+    GLsizeiptr alignedTotalSize() {
+        return alignedSizeOfNumber() + alignedSizeOfPositions();
+    }
+
+    GLsizeiptr alignedSizeOfNumber() {
+        // first element is N_LEDS as uint -> 4 bytes -> too small.
+        // from then on, the offset of an array must be a multiple of its base data size
+        return sizeof(position[0]);
+    }
+    
+    GLsizeiptr alignedSizeOfPositions() {
         // position is now vec4 to match the alignment
-        return sizeof(N_LEDS) + sizeof(position);
+        return position.size() * sizeof(position[0]);
+    }
+
+    void printDebug() {
+        auto nLength = std::to_string(N_LEDS).length();
+        std::cout << "=== DEBUG TROPHY LED POSITIONS === N = " << N_LEDS << std::endl;
+
+        for (int i = 0; i < N_LEDS; i++) {
+
+            if (i == 0) {
+                std::cout << "  LOGO:" << std::endl;
+            } else if (i == N_LEDS_IN_LOGO) {
+                std::cout << "  BASE:" << std::endl;
+            } else if (i == N_RGB_LEDS) {
+                std::cout << "  WHITE-ONLY:" << std::endl;
+            }
+
+            auto p = position[i];
+            // remember, the unused p.w component is only there for alignment, not used.
+            std::cout << "    " << std::setw(nLength) << std::setfill('0') << i << ": "
+                << p.x << ", " << p.y << ", " << p.z << std::endl;
+        }
+
+        std:: cout << "-> Ranges: " << std::endl
+                   << "   X [" << pos_min.x << ", " << pos_max.x << "]" << std::endl
+                   << "   Y [" << pos_min.y << ", " << pos_max.y << "]" << std::endl
+                   << "   Z [" << pos_min.z << ", " << pos_max.z << "]" << std::endl;
+        std::cout << "==================================" << std::endl;
     }
 
 };

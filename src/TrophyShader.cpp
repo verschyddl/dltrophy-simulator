@@ -9,7 +9,7 @@
 const std::string vertex_shader_path = "./shaders/vertex.glsl";
 const std::string fragment_shader_path = "./shaders/fragment.glsl";
 
-TrophyShader::TrophyShader(Size resolution, Config config, TrophyState *state)
+TrophyShader::TrophyShader(Size resolution, Config config, ShaderState *state)
 : state(state) {
     vertex.read(vertex_shader_path);
     fragment.read(fragment_shader_path);
@@ -159,7 +159,7 @@ void TrophyShader::initUniformBuffers() {
     glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, definitionBufferId);
     glBindBuffer(GL_UNIFORM_BUFFER, definitionBufferId);
     glBufferData(GL_UNIFORM_BUFFER,
-                 state->trophy->alignedSize(),
+                 state->trophy->alignedTotalSize(),
                  NULL,
                  GL_STATIC_DRAW);
     glBufferSubData(GL_UNIFORM_BUFFER,
@@ -168,8 +168,8 @@ void TrophyShader::initUniformBuffers() {
                     &state->nLeds
     );
     glBufferSubData(GL_UNIFORM_BUFFER,
-                    sizeof(state->nLeds),
-                    sizeof(state->trophy->position),
+                    state->trophy->alignedSizeOfNumber(),
+                    state->trophy->alignedSizeOfPositions(),
                     state->trophy->position.data()
     );
 
@@ -179,7 +179,7 @@ void TrophyShader::initUniformBuffers() {
     glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, stateBufferId);
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     glBufferData(GL_UNIFORM_BUFFER,
-                 sizeof(state->leds),
+                 state->alignedTotalSize(),
                  NULL,
                  GL_DYNAMIC_DRAW);
 
@@ -203,9 +203,14 @@ void TrophyShader::draw(float time) {
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     glBufferSubData(GL_UNIFORM_BUFFER,
                     0,
-                    sizeof(state->leds),
+                    state->alignedSizeForLeds(),
                     state->leds.data()
                     );
+    glBufferSubData(GL_UNIFORM_BUFFER,
+                    state->alignedSizeForLeds(),
+                    sizeof(state->options),
+                    &state->options
+    );
     glBindBuffer(GL_UNIFORM_BUFFER, 0); // orphan again
 
     glDrawArrays(GL_TRIANGLES, 0, 6);

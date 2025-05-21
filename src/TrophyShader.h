@@ -15,7 +15,7 @@
 
 #include "shaderHelpers.h"
 #include "Config.h"
-#include "TrophyState.h"
+#include "ShaderState.h"
 
 class TrophyShader {
 
@@ -30,7 +30,7 @@ private:
     void initVertices();
     static std::array<float, 18> createQuadVertices();
 
-    TrophyState *state;
+    ShaderState *state;
     GLuint stateBufferId = 0;
     GLuint definitionBufferId = 0;
     void initUniformBuffers();
@@ -40,7 +40,7 @@ private:
     Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
 
 public:
-    TrophyShader(Size resolution, Config config, TrophyState *state);
+    TrophyShader(Size resolution, Config config, ShaderState *state);
     ~TrophyShader();
 
     void use();

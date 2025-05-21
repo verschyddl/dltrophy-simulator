@@ -28,12 +28,14 @@ SimulatorApp::SimulatorApp(int width, int height, int port)
     auto rect = Rect::query(window);
 
     trophy = new Trophy();
-    state = new TrophyState(trophy);
+    state = new ShaderState(trophy);
 
     shader = new TrophyShader(rect, config, state);
     shader->assertCompileSuccess(showError);
 
     receiver = new UdpReceiver(port);
+
+    initializeKeyMap();
 }
 
 SimulatorApp::~SimulatorApp() {
@@ -68,6 +70,14 @@ GLFWwindow* SimulatorApp::initializeWindow(int width, int height, const std::str
 
     glfwMakeContextCurrent(window);
 
+    glfwSetWindowUserPointer(window, this);
+    glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+        auto app = static_cast<SimulatorApp*>(
+                glfwGetWindowUserPointer(window)
+        );
+        app->handleKeyInput(key, scancode, action, mods);
+    });
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -84,8 +94,10 @@ void SimulatorApp::run() {
 
     startTime = static_cast<float>(glfwGetTime());
 
-    // TODO: DEV STUFF - REMOVE ASAP
+    // TODO: replace when we have a better idea for development
     state->randomize();
+
+    trophy->printDebug();
 
     while (!glfwWindowShouldClose(window)) {
 
@@ -101,7 +113,7 @@ void SimulatorApp::run() {
         glfwSwapBuffers(window);
 
         glfwPollEvents();
-        handleInput();
+        handleMouseInput();
 
         handleUdpMessages();
     }
@@ -109,13 +121,54 @@ void SimulatorApp::run() {
     config.store(window);
 }
 
-void SimulatorApp::handleInput() {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, true);
-    }
+float SimulatorApp::handleElapsedTime() {
+    currentTime = static_cast<float>(glfwGetTime());
+    return currentTime - startTime;
+}
 
+// there should be many implementations, but this one is enough for now
+#ifdef _WIN32
+    #include <windows.h>
+    void SimulatorApp::showError(const std::string &message) {
+        MessageBoxA(nullptr, message.c_str(), "Error", MB_OK | MB_ICONERROR);
+        std::cerr << message << std::endl;
+        std::exit(1);
+    }
+#else
+    void SimulatorApp::showError(const std::string &message) {
+        std::cerr << message << std::endl;
+    }
+#endif
+
+void SimulatorApp::handleKeyInput(int key, int scancode, int action, int mods) {
+    if (action == GLFW_PRESS && !keyDown[key]) {
+        keyDown[key] = true;
+    }
+    else if (action == GLFW_RELEASE && keyDown[key]) {
+        try {
+            auto& callback = keyMap.at(key);
+            callback(mods);
+        }
+        catch (const std::out_of_range&) {}
+    }
+}
+
+void SimulatorApp::initializeKeyMap() {
+    keyMap = {{
+        GLFW_KEY_ESCAPE, [this](int mods) {
+            glfwSetWindowShouldClose(window, true);
+        }
+    }, {
+        GLFW_KEY_G, [this](int mods) {
+            toggle(state->options.showGrid);
+        }
+    }};
+}
+
+void SimulatorApp::handleMouseInput() {
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
+
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
         std::cout << "Mouse Down Left @ (" << mouseX << ", " << mouseY << ")" << std::endl;
     }
@@ -132,31 +185,10 @@ void SimulatorApp::handleUdpMessages() {
 }
 
 void SimulatorApp::buildImguiControls() {
-
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     ImGui::Begin("Fragment Shader Example");
     ImGui::Text("This is a window with a fragment shader!");
     ImGui::End();
-
 }
-
-float SimulatorApp::handleElapsedTime() {
-    currentTime = static_cast<float>(glfwGetTime());
-    return currentTime - startTime;
-}
-
-// there should be many implementations, but this one is enough for now
-#ifdef _WIN32
-#include <windows.h>
-    void SimulatorApp::showError(const std::string &message) {
-        MessageBoxA(nullptr, message.c_str(), "Error", MB_OK | MB_ICONERROR);
-        std::cerr << message << std::endl;
-        std::exit(1);
-    }
-#else
-    void SimulatorApp::showError(const std::string &message) {
-        std::cerr << message << std::endl;
-    }
-#endif

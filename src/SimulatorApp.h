@@ -11,17 +11,23 @@
 
 #include <string>
 #include "UdpReceiver.h"
-#include "TrophyState.h"
+#include "ShaderState.h"
 #include "TrophyShader.h"
 #include "Config.h"
+#include "inputHelpers.h"
 
 class SimulatorApp {
 private:
     GLFWwindow* window;
     GLFWwindow* initializeWindow(int width, int height, const std::string& title);
     static void handleWindowError(int error, const char* description);
-    void handleInput();
     void buildImguiControls();
+
+    KeyMap keyMap;
+    void initializeKeyMap();
+    void handleKeyInput(int key, int scancode, int action, int mods);
+    std::unordered_map<KeyCode, bool> keyDown;
+    void handleMouseInput();
 
     TrophyShader* shader;
 
@@ -30,7 +36,7 @@ private:
     float handleElapsedTime();
 
     Trophy* trophy;
-    TrophyState* state;
+    ShaderState* state;
 
     UdpReceiver* receiver;
     void handleUdpMessages();
