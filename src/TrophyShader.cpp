@@ -6,13 +6,19 @@
 #include "TrophyShader.h"
 #include "shaderHelpers.h"
 
-const std::string vertex_shader_path = "./shaders/vertex.glsl";
-const std::string fragment_shader_path = "./shaders/fragment.glsl";
+const std::string default_vertex_shader_path = "./shaders/vertex.glsl";
+const std::string default_fragment_shader_path = "./shaders/fragment.glsl";
 
 TrophyShader::TrophyShader(Size resolution, Config config, ShaderState *state)
 : state(state) {
-    vertex.read(vertex_shader_path);
-    fragment.read(fragment_shader_path);
+    vertex.read(FileHelper::first_if_exists(
+            config.customVertexShaderPath,
+            default_vertex_shader_path
+    ));
+    fragment.read(FileHelper::first_if_exists(
+            config.customFragmentShaderPath,
+            default_fragment_shader_path
+    ));
     createProgram();
 
     glUseProgram(program);
@@ -22,13 +28,6 @@ TrophyShader::TrophyShader(Size resolution, Config config, ShaderState *state)
     initUniformBuffers();
 
     onRectChange(resolution, config);
-}
-
-void TrophyShader::onRectChange(Size resolution, Config config) {
-    auto rect = config.shaderRect(resolution);
-    iRect.value = glm::vec4(rect.x, rect.y, rect.width, rect.height);
-    glViewport(rect.x, rect.y, rect.width, rect.height);
-    initVertices();
 }
 
 TrophyShader::~TrophyShader() {
@@ -41,6 +40,17 @@ TrophyShader::~TrophyShader() {
 
     glDeleteBuffers(1, &stateBufferId);
     glDeleteBuffers(1, &definitionBufferId);
+}
+
+void TrophyShader::onRectChange(Size resolution, Config config) {
+    auto rect = config.shaderRect(resolution);
+    iRect.value = glm::vec4(rect.x, rect.y, rect.width, rect.height);
+    glViewport(rect.x, rect.y, rect.width, rect.height);
+    initVertices();
+}
+
+void TrophyShader::recreate(Config config) {
+    std::cout << "Tja, ist aber noch nicht implementiert. Sorrie!" << std::endl;
 }
 
 void compileShader(ShaderMeta& shader) {

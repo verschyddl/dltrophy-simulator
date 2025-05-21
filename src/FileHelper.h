@@ -9,11 +9,11 @@
 #include <filesystem>
 #include <fstream>
 #include <format>
+#include <iostream>
 
-class FileHelper {
-public:
+namespace FileHelper {
+
     static void ensure(const std::string& path) {
-        // helper that could be moved out of this class, but nevermindelidoo.
         if (std::filesystem::exists(path))
             return;
 
@@ -22,11 +22,18 @@ public:
                         std::filesystem::path(path)
                 ).string();
         auto message = std::format(
-                "File can not be read under {0}",
+                "File not found: {0}",
                 absolute_path
         );
         throw std::runtime_error(message);
     }
+
+    static std::string first_if_exists(const std::string& customPath, const std::string& defaultPath) {
+        return std::filesystem::exists(customPath)
+                ? customPath
+                : defaultPath;
+    }
+
 };
 
 #endif //DLTROPHY_SIMULATOR_FILEHELPER_H

@@ -24,34 +24,22 @@ private:
     [[maybe_unused]] GLuint _unusedAlignment = 0;
 
 public:
-    LED(GLuint R, GLuint G, GLuint B) {
-        set(R, G, B);
-    }
+    LED(GLuint R, GLuint G, GLuint B)
+    : r(R), g(G), b(B) {}
 
-    LED(GLuint W) {
-        set(W);
-    }
+    LED(GLuint W)
+    : LED(W, W, W) {}
 
     LED() = default;
 
-    void set(GLuint R, GLuint G, GLuint B) {
-        r = R;
-        g = G;
-        b = B;
-    }
-
-    void set(GLuint w) {
-        r = w;
-        g = w;
-        b = w;
-    }
-
     void set(LED led) {
-        set(led.r, led.g, led.b);
+        r = led.r;
+        g = led.g;
+        b = led.b;
     }
 
-    GLuint gray() {
-        float w = 0.299 * r + 0.587 * g + 0.114 * b;
+    GLuint gray() const {
+        auto w = 0.299 * r + 0.587 * g + 0.114 * b;
         return static_cast<GLuint>(w);
     }
 };

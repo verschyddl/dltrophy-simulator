@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include "Config.h"
+#include "FileHelper.h"
 
 using nlohmann::json;
 
@@ -47,12 +48,18 @@ bool Config::tryReadFile() {
             windowRect = std::optional(rect);
         }
 
-        json jShader = j["shader"];
-        if (jShader.is_object()) {
-            shaderView.x = jShader.value("x", shaderView.x);
-            shaderView.y = jShader.value("y", shaderView.y);
-            shaderView.width = jShader.value("width", shaderView.width);
-            shaderView.height = jShader.value("height", shaderView.height);
+        json jView = j["view"];
+        if (jView.is_object()) {
+            shaderView.x = jView.value("x", shaderView.x);
+            shaderView.y = jView.value("y", shaderView.y);
+            shaderView.width = jView.value("width", shaderView.width);
+            shaderView.height = jView.value("height", shaderView.height);
+        }
+
+        json jShaders = j["customShaders"];
+        if (jShaders.is_object()) {
+            customVertexShaderPath = jShaders.value("vertex", "");
+            customFragmentShaderPath = jShaders.value("fragment", "");
         }
 
         return true;
@@ -72,12 +79,16 @@ void Config::store(GLFWwindow* window) const {
                 {"width", rect.width},
                 {"height", rect.height}
             }},
-            {"shader", {
+            {"view", {
                {"x", shaderView.x},
                {"y", shaderView.y},
                {"width", shaderView.width},
                {"height", shaderView.height},
-            }}
+            }},
+            {"customShaders", {
+               {"vertex", customVertexShaderPath},
+               {"fragment", customVertexShaderPath}
+            }},
     };
 
     try {
@@ -94,8 +105,7 @@ void Config::store(GLFWwindow* window) const {
     }
 }
 
-Config::Config(const std::string &filepath)
-    : path(std::filesystem::path(filepath)) {
+Config::Config(const std::string& filepath)
+: path(std::filesystem::path(filepath)) {
     didRead = tryReadFile();
 }
-

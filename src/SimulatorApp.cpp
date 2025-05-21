@@ -13,7 +13,7 @@
 SimulatorApp::SimulatorApp(int width, int height, int port)
 : config(config_file) {
 
-    window = initializeWindow(width, height,"QM's DL Trophy Smiulator");
+    window = initializeWindow(width, height,"QM's DL Trophy Smiuluator");
 
     gladLoadGL(glfwGetProcAddress);
 
@@ -29,7 +29,6 @@ SimulatorApp::SimulatorApp(int width, int height, int port)
 
     trophy = new Trophy();
     state = new ShaderState(trophy);
-
     shader = new TrophyShader(rect, config, state);
     shader->assertCompileSuccess(showError);
 
@@ -46,7 +45,6 @@ SimulatorApp::~SimulatorApp() {
     if (window) {
         glfwDestroyWindow(window);
     }
-
     glfwTerminate();
 }
 
@@ -80,8 +78,11 @@ GLFWwindow* SimulatorApp::initializeWindow(int width, int height, const std::str
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 300 es");
+    ImGui_ImplOpenGL3_Init("#version 330 core");
 
     return window;
 }
@@ -99,12 +100,11 @@ void SimulatorApp::run() {
 
     trophy->printDebug();
 
-    shader->use();
-
     while (!glfwWindowShouldClose(window)) {
 
         buildImguiControls();
 
+        shader->use();
         auto elapsedTime = handleElapsedTime();
         shader->render(elapsedTime);
 
@@ -188,12 +188,19 @@ void SimulatorApp::initializeKeyMap() {
     }};
 }
 
+const bool debugMouse = false;
+
 void SimulatorApp::handleMouseInput() {
+    // NOTE: there is no need for this function yet,
+    // as everything mouse-ish is handled by ImGui
+
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
 
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-        std::cout << "Mouse Down Left @ (" << mouseX << ", " << mouseY << ")" << std::endl;
+        if (debugMouse) {
+            std::cout << "Mouse Down Left @ (" << mouseX << ", " << mouseY << ")" << std::endl;
+        }
     }
 }
 
@@ -211,7 +218,23 @@ void SimulatorApp::buildImguiControls() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    ImGui::Begin("Fragment Shader Example");
+    ImGui::Begin("Deadline Trophy Smiuluator");
+
     ImGui::Text("This is a window with a fragment shader!");
+
+    if (ImGui::Button("Reload Shader")) {
+        shader->recreate(config);
+    }
+
+    ImGui::SliderFloat("LED size",
+                       &state->params.ledSize,
+                       1.e-3,
+                       1.f);
+    ImGui::SliderFloat("LED grading",
+                       &state->params.ledExponent,
+                       0.01f,
+                       5.f);
+
     ImGui::End();
 }
+

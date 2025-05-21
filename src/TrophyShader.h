@@ -47,6 +47,7 @@ public:
     void render(float time);
     void assertCompileSuccess(const std::function<void(const std::string&)>& callback);
     void onRectChange(Size resolution, Config config);
+    void recreate(Config config);
 };
 
 #endif //DLTROPHY_SIMULATOR_TROPHYSHADER_H

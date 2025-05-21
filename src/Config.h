@@ -42,6 +42,9 @@ class Config {
 public:
     std::filesystem::path path;
 
+    std::string customVertexShaderPath;
+    std::string customFragmentShaderPath;
+
     explicit Config(const std::string& filepath);
 
     void restore(GLFWwindow* window);
@@ -61,6 +64,8 @@ public:
     };
 
 private:
+    bool tryReadFile();
+
     bool didRead = false;
     std::optional<Rect> windowRect = std::nullopt;
     RelativeRect shaderView{
@@ -69,9 +74,6 @@ private:
             .x = 0.47,
             .y = 0.05,
     };
-
-    bool tryReadFile();
-
 };
 
 #endif //DLTROPHY_SIMULATOR_CONFIG_H
