@@ -44,7 +44,7 @@ public:
     ~TrophyShader();
 
     void use();
-    void draw(float time);
+    void render(float time);
     void assertCompileSuccess(const std::function<void(const std::string&)>& callback);
     void onRectChange(Size resolution, Config config);
 };

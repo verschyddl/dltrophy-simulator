@@ -30,11 +30,11 @@ struct Trophy {
     std::array<bool, N_LEDS> is_logo;
     std::array<bool, N_LEDS> is_base;
 
-    static constexpr glm::vec3 logo_center = {0.f, 0.7f, 0.f};
+    static constexpr glm::vec3 logo_center = {0.1f, 0.4f, 0.f};
     static constexpr float logo_width = 1.2f;
     static constexpr float logo_height = 0.5f;
-    static constexpr glm::vec3 base_center = {0.f, -.5f, 0.f};
-    static constexpr float base_size = 0.3f;
+    static constexpr glm::vec3 base_center = {0.f, -.4f, 0.f};
+    static constexpr float base_size = 1.5f;
 
     glm::vec3 pos_min, pos_max;
 

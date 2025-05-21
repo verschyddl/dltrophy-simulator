@@ -190,28 +190,36 @@ void TrophyShader::use() {
     if (!program.error.empty()) {
         throw std::runtime_error("Cannot use program, because linking failed.");
     }
-
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(program.id);
-
-    iRect.set();
 }
 
-void TrophyShader::draw(float time) {
+void TrophyShader::render(float time) {
+
     iTime.set(time);
+    iRect.set();
 
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
+    int offset = 0;
     glBufferSubData(GL_UNIFORM_BUFFER,
-                    0,
+                    offset,
                     state->alignedSizeForLeds(),
                     state->leds.data()
-                    );
+    );
+    offset += state->alignedSizeForLeds();
     glBufferSubData(GL_UNIFORM_BUFFER,
-                    state->alignedSizeForLeds(),
+                    offset,
+                    sizeof(state->params),
+                    &state->params
+    );
+    offset += sizeof(state->params),
+    glBufferSubData(GL_UNIFORM_BUFFER,
+                    offset,
                     sizeof(state->options),
                     &state->options
     );
-    glBindBuffer(GL_UNIFORM_BUFFER, 0); // orphan again
+
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }

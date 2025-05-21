@@ -99,13 +99,14 @@ void SimulatorApp::run() {
 
     trophy->printDebug();
 
+    shader->use();
+
     while (!glfwWindowShouldClose(window)) {
 
         buildImguiControls();
 
-        shader->use();
         auto elapsedTime = handleElapsedTime();
-        shader->draw(elapsedTime);
+        shader->render(elapsedTime);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -155,12 +156,34 @@ void SimulatorApp::handleKeyInput(int key, int scancode, int action, int mods) {
 
 void SimulatorApp::initializeKeyMap() {
     keyMap = {{
-        GLFW_KEY_ESCAPE, [this](int mods) {
+        GLFW_KEY_ESCAPE,
+        [this](int mods) {
             glfwSetWindowShouldClose(window, true);
         }
     }, {
-        GLFW_KEY_G, [this](int mods) {
+        GLFW_KEY_G,
+        [this](int mods) {
             toggle(state->options.showGrid);
+        }
+    }, {
+        GLFW_KEY_D,
+        [this](int mods) {
+            state->params.ledSize *= 1.05;
+        }
+              }, {
+        GLFW_KEY_F,
+        [this](int mods) {
+            state->params.ledSize /= 1.05;
+        }
+    }, {
+        GLFW_KEY_E,
+        [this](int mods) {
+            state->params.ledExponent -= 0.01;
+        }
+    }, {
+        GLFW_KEY_R,
+        [this](int mods) {
+            state->params.ledExponent += 0.01;
         }
     }};
 }

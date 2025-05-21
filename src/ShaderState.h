@@ -65,13 +65,26 @@ struct ShaderOptions {
     bool debug3 = false;
 };
 
+struct Parameters {
+    // has only floats - i.e. is aligned to 4 bytes
+    float ledSize;
+    float ledExponent;
+};
+
 struct ShaderState {
     Trophy* trophy;
     GLuint nLeds;
     std::vector<LED> leds;
 
+    Parameters params {
+//        .ledSize = 5.e-5, // 0.01
+//        .ledExponent = 2.8, // 1.4
+        .ledSize = 0.05,
+        .ledExponent = 0.8,
+    };
     ShaderOptions options {
-        .showGrid = true
+        .showGrid = true,
+        .debug3 = true, // just to check
     };
 
     explicit ShaderState(Trophy* trophy):
@@ -85,7 +98,9 @@ struct ShaderState {
         };
 
     GLsizeiptr alignedTotalSize() {
-        return alignedSizeForLeds() + sizeof(options);
+        return alignedSizeForLeds()
+            + sizeof(params)
+            + sizeof(options);
     }
 
     GLsizeiptr alignedSizeForLeds() {
