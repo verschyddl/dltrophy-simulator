@@ -65,9 +65,7 @@ struct ShaderState {
     std::vector<LED> leds;
 
     Parameters params {
-//        .ledSize = 5.e-5, // 0.01
-//        .ledExponent = 2.8, // 1.4
-        .ledSize = 0.05,
+        .ledSize = 0.022,
         .ledExponent = 0.8,
     };
     ShaderOptions options {

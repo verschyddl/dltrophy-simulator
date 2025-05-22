@@ -33,19 +33,22 @@ vec3 to_vec(RGB rgb) {
     return vec3(rgb.r, rgb.g, rgb.b) / 255.;
 }
 
-vec4 c = vec4(1., 0., -1., .5);
+const float pi = 3.14159265;
+const float rad = pi / 180.;
+const float tau = 2. * pi;
+const vec4 c = vec4(1., 0., -1., .5);
 
 vec2 iResolution = iRect.zw;
 float aspectRatio = iResolution.x / iResolution.y;
 
-void draw_grid(out vec3 col, in vec2 uv) {
+vec3 draw_grid(in vec2 uv) {
+    vec3 col = c.yyy;
     if (!showGrid) {
-        return;
+        return col;
     }
     float thickness = 3.e-3;
     const float step = 0.1;
     uv = abs(uv);
-    col = c.yyy;
     if (min(uv.x, uv.y) < 1.5 * thickness) {
         thickness *= 1.5;
         col.g = 0.8;
@@ -55,9 +58,22 @@ void draw_grid(out vec3 col, in vec2 uv) {
              mod(uv.y, step) < thickness) {
         col.g = 0.6;
     }
+    return col;
 }
 
 // 3D GEOMETRY
+
+const vec2 epsilon = c.xz * 0.0005;
+
+mat3 rotateX(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(1,  0,  0),
+        vec3(0,  c, -s),
+        vec3(0, +s,  c)
+    );
+}
 
 struct Marched {
     float sd;
@@ -67,21 +83,29 @@ struct Marched {
 
 const int MISS = -1;
 const int LED_MATERIAL = 0;
+const int FLOOR_MATERIAL = 1;
+
+Marched sdFloor(vec3 p, float level) {
+    float d = p.y - level;
+    return Marched(d, FLOOR_MATERIAL, -1);
+}
 
 float sdSphere(vec3 p, vec3 center, float radius) {
     return length(p - center) - radius;
 }
 
+// RAY MARCHING
+
 const float MAX_DIST = 1.e3;
 const float MIN_DIST = 1.e-3;
-// Fixed step size ray marching - required inside the Epoxy Pyramid
+const int MAX_STEPS = 400;
+// Note: Fixed step size required inside the Epoxy Pyramid
 const float STEP_SIZE = 0.1;
-const int MAX_STEPS = 100;
 
-void marchScene(out Marched hit, vec3 p) {
-    hit = Marched(MAX_DIST, MISS, -1);
+Marched sdScene(vec3 p) {
+    Marched hit = sdFloor(p, -4.);
+
     float sd;
-
     for (int i = 0; i < nLeds; i++) {
         sd = sdSphere(p, ledPosition[i].xyz, ledSize);
         if (sd < hit.sd) {
@@ -89,14 +113,27 @@ void marchScene(out Marched hit, vec3 p) {
             hit.ledIndex = i;
         }
     }
+    if (hit.ledIndex >= 0) {
+        hit.material = LED_MATERIAL;
+    }
+    return hit;
+}
+
+vec3 calcNormal(in vec3 p) {
+    return normalize(
+        epsilon.xyy * sdScene(p + epsilon.xyy).sd +
+        epsilon.yyx * sdScene(p + epsilon.yyx).sd +
+        epsilon.yxy * sdScene(p + epsilon.yxy).sd +
+        epsilon.xxx * sdScene(p + epsilon.xxx).sd
+    );
 }
 
 Marched marchRay(vec3 ro, vec3 rd) {
-    Marched hit = Marched(MAX_DIST, MISS, -1); // <-- Initialisierung eher überflüssig...
+    Marched hit = Marched(MAX_DIST, MISS, -1); // Initialisierung eher überflüssig. ja.
     float depth = MIN_DIST;
 
     for(int i = 0; i < MAX_STEPS; i++) {
-        marchScene(hit, ro + rd * depth);
+        hit = sdScene(ro + rd * depth);
         depth += hit.sd;
 
 //        if (hit.sd < STEP_SIZE) {
@@ -112,18 +149,31 @@ Marched marchRay(vec3 ro, vec3 rd) {
     }
 
     hit.sd = depth;
-    if (hit.ledIndex >= 0) {
-        hit.material = LED_MATERIAL;
-    }
     return hit;
 }
+
+vec3 floorColor = vec3(0.33, 0.43 - 0.4 * cos(iTime), 0.59);
+
+vec3 materialColor(Marched hit, vec3 ray) {
+    switch (hit.material) {
+        case LED_MATERIAL:
+            return to_vec(ledColor[hit.ledIndex]);
+        case FLOOR_MATERIAL:
+            return floorColor;
+        default:
+            return c.xyy; // Signalfarbe Rot, weil darf nicht sein.
+    }
+}
+
+#define clampVec3(x) clamp(x, vec3(0), vec3(1));
 
 vec3 borderDark = vec3(0.4);
 vec3 borderLight = vec3(0.6);
 
 void main() {
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;
-    fragColor = c.xxxy;
+    fragColor = c.yyyx;
+    vec3 col = fragColor.rgb;
 
     if (max(abs(uv.x / aspectRatio), abs(uv.y)) > 0.99) { // frame ?
         if (abs(uv.x) >= abs(uv.y)) { // vertical frame?
@@ -134,9 +184,10 @@ void main() {
         return;
     }
 
-    vec3 col, grid_color;
-    draw_grid(grid_color, uv);
-    col = 0.3 * grid_color;
+    vec3 grid = draw_grid(uv);
+    if (showGrid) {
+        fragColor.rgb = 0.5 * grid;
+    }
 
     if (debug3) {
         // Test 2D Rendering only
@@ -146,17 +197,49 @@ void main() {
             d = exp(-pow(abs(d), ledExponent) / ledSize);
             col += d * to_vec(ledColor[i]);
         }
-        fragColor = vec4(col, 1.0);
+        fragColor.rgb = clampVec3(col);
         return;
     }
 
-    vec3 ro = vec3(0, 0, -1);
-    vec3 rd = normalize(vec3(uv, 1.0));
+    const vec3 cameraPosition = vec3(0., 0.12, -1.8);
+    const float fieldOfView = 1.6;
+    const float cameraTilt = 0.;
+
+    vec3 ro = cameraPosition;
+    vec3 rd = normalize(vec3(uv, fieldOfView));
+    rd *= rotateX(cameraTilt * rad);
+    vec3 ray, normal, refl, sunPos, sunDir;
+
+    const float diffuseAmount = 0.7;
+    const float specularAmount = 0.4;
+    const float specularGrading = 2.1;
+
     Marched hit = marchRay(ro, rd);
+    float d = hit.sd;
+    if (d < MAX_DIST) {
+        ray = ro + rd * d;
+        col = materialColor(hit, ray);
+        normal = calcNormal(ray);
 
-    if (hit.sd > MAX_DIST) {
+        // sunPos = ... egal, gleichmäßig paralleles Licht:
+        vec3 sunDir = normalize(vec3(0.3, 2., 1.));
 
+        float diffuse = dot(normal, sunDir);
+        diffuse = clamp(diffuse, 0., 1.);
+        d = mix(d, diffuse, diffuseAmount);
+
+        refl = reflect(sunDir, normal);
+        float specular = dot(refl, normalize(ray));
+        specular = clamp(specular, 0., 1.);
+        specular = pow(specular, specularGrading);
+        d = mix(d, specular, specularAmount);
+
+        // col = mix(fragColor.rgb, col, exp(-0.0001 * pow(hit.sd, 3.)));
     }
 
-    fragColor = vec4(col, 1.0);
+    if (showGrid) {
+        col += 0.2 * grid;
+    }
+
+    fragColor.rgb = clampVec3(col);
 }

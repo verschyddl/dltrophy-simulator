@@ -34,7 +34,7 @@ struct Trophy {
     static constexpr float logo_width = 1.2f;
     static constexpr float logo_height = 0.5f;
     static constexpr glm::vec3 base_center = {0.f, -.4f, 0.f};
-    static constexpr float base_size = 1.5f;
+    static constexpr float base_size = 1.3f;
 
     glm::vec3 pos_min, pos_max;
 
@@ -63,12 +63,11 @@ struct Trophy {
                         base_center.z + base_size * relative.y
                 );
             }
-            else {
-                absolute = glm::vec3(
-                        0.0f,
-                        0.0f,
-                        -2.1f // irgendwoanders hin halt
-                );
+            else if (i == N_LEDS - 2) {
+                // is the first one the back light, maybe? last one zen se floor?
+                absolute = i == N_LEDS - 2
+                        ? glm::vec3(-0.05f, -0.1f, 0.02f)
+                        : glm::vec3(0.0f, 0.0f, base_center.z);
             }
 
             position[i] = glm::vec4{
@@ -130,10 +129,11 @@ struct Trophy {
 
     static glm::vec2 calc_base_order(size_t base_index) {
         size_t N_EDGE = N_LEDS_IN_BASE / 4;
-        float edge_step = 1. / float(N_EDGE + 2);
+        float edge_step = 1. / float(N_EDGE - 1 + 2);
+        int base_edge = base_index / N_EDGE;
 
-        if (base_index / N_EDGE > 0 && base_index / N_EDGE < 3) {
-            size_t y_index = base_index % (2 * N_EDGE);
+        if (base_edge > 0 && base_edge < 3) {
+            size_t y_index = (base_index % (2 * N_EDGE)) / 2;
             return glm::vec2{
                     -0.5f + (base_index % 2),
                     -0.5f + edge_step * (1 + y_index)
@@ -143,7 +143,7 @@ struct Trophy {
             size_t x_index = base_index % N_EDGE;
             return glm::vec2{
                     -0.5f + edge_step * (1 + x_index),
-                    -0.5f + (base_index / N_EDGE > 0)
+                    -0.5f + (base_edge > 0)
             };
         }
     }
