@@ -1,0 +1,6 @@
+- add Reload Shaders functionality
+- make all the shader constants part of the uniform block
+- Add Pyramid Frame to check spacing
+- Ray Tracer that can render halbtransparent
+- Connect UDP
+- Check two single LEDs
