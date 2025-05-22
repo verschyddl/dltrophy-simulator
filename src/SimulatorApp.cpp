@@ -98,26 +98,6 @@ void SimulatorApp::run() {
     // TODO: replace when we have a better idea for development
     state->randomize();
 
-    // debugging the base
-    state->set([this](size_t i) {
-        if (!trophy->is_base[i]) {
-            return state->leds[i];
-        }
-        int base_edge = (i - Trophy::N_LEDS_IN_LOGO) / 16;
-        switch (base_edge) {
-            case 0:
-                return LED(200, 50, 0);
-            case 1:
-                return LED(0, 120, 255);
-            case 2:
-                return LED(100, 180, 20);
-            case 3:
-                return LED(20, 255, 45);
-            default:
-                return LED(100, 100, 100);
-        }
-    });
-
     trophy->printDebug();
 
     while (!glfwWindowShouldClose(window)) {
