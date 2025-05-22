@@ -152,14 +152,18 @@ Marched marchRay(vec3 ro, vec3 rd) {
     return hit;
 }
 
-vec3 floorColor = vec3(0.33, 0.43 - 0.4 * cos(iTime), 0.59);
+vec3 floorColor = vec3(0., 0.73 - 0.2 * cos(iTime), 0.94 - 0.05 * sin(0.4 * iTime));
 
 vec3 materialColor(Marched hit, vec3 ray) {
     switch (hit.material) {
         case LED_MATERIAL:
             return to_vec(ledColor[hit.ledIndex]);
         case FLOOR_MATERIAL:
-            return floorColor;
+            vec2 spacing = vec2(5.21);
+            vec2 grid = mod(ray.xz, spacing);
+            vec2 dist = min(grid, spacing - grid);
+            float width = .3;
+            return floorColor * clamp(width - min(dist.x, dist.y), 0., 1.);
         default:
             return c.xyy; // Signalfarbe Rot, weil darf nicht sein.
     }
@@ -201,9 +205,9 @@ void main() {
         return;
     }
 
-    const vec3 cameraPosition = vec3(0., 0.12, -1.8);
-    const float fieldOfView = 1.6;
-    const float cameraTilt = 0.;
+    const vec3 cameraPosition = vec3(0., 0.17, -1.8);
+    const float fieldOfView = 1.3;
+    const float cameraTilt = 12.3;
 
     vec3 ro = cameraPosition;
     vec3 rd = normalize(vec3(uv, fieldOfView));
