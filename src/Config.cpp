@@ -6,24 +6,65 @@
 #include <format>
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <getopt.h>
 #include "Config.h"
 #include "FileHelper.h"
 
 using nlohmann::json;
 
+inline void overwrite_if_path_exists(int opt, int targetOpt, std::string& target) {
+    if (opt != targetOpt) {
+        return;
+    }
+    if (std::filesystem::exists(optarg)) {
+        target = optarg;
+    } else {
+        std::cerr << "Ignore given path, as it is invalid: " << optarg << std::endl;
+    }
+}
+
+Config::Config(int argc, char **argv) {
+    std::string configFilename = defaultFilename;
+    std::string overwriteVertexShaderPath = "";
+    std::string overwriteFragmentShaderPath = "";
+
+    int opt;
+    while ((opt = getopt(argc, argv, "c:f:v:")) != -1) {
+        if (opt == '?') {
+            std::cerr << "Invalid option: " << opt << std::endl;
+            continue;
+        }
+        overwrite_if_path_exists(opt, 'c', configFilename);
+        overwrite_if_path_exists(opt, 'f', overwriteFragmentShaderPath);
+        overwrite_if_path_exists(opt, 'v', overwriteVertexShaderPath);
+    }
+
+    path = std::filesystem::path(configFilename);
+    didRead = tryReadFile();
+
+    if (!overwriteVertexShaderPath.empty()) {
+        customVertexShaderPath = overwriteVertexShaderPath;
+    }
+    if (!overwriteFragmentShaderPath.empty()) {
+        customFragmentShaderPath = overwriteFragmentShaderPath;
+    }
+}
+
 void Config::restore(GLFWwindow* window) {
-    if (!wasRead() || !windowRect.has_value()) {
+    if (!wasRead()) {
         return;
     }
 
-    glfwSetWindowPos(window, windowRect->x, windowRect->y);
+    if (windowPos.has_value()) {
+        glfwSetWindowPos(window, windowPos->x, windowPos->y);
+    }
 
     auto rect = Rect::query(window);
-    if (windowRect->width > 0) {
-        rect.width = windowRect->width;
+    if (windowSize.width > 0) {
+        rect.width = windowSize.width;
     }
-    if (windowRect->height > 0) {
-        rect.height = windowRect->height;
+    if (windowSize.height > 0) {
+        rect.height = windowSize.height;
     }
     glfwSetWindowSize(window, rect.width, rect.height);
 }
@@ -40,12 +81,18 @@ bool Config::tryReadFile() {
 
         json jWindow = j["window"];
         if (jWindow.is_object()) {
-            Rect rect{};
-            rect.x = jWindow.value("x", 0);
-            rect.y = jWindow.value("y", 0);
-            rect.width = jWindow.value("width", 0);
-            rect.height = jWindow.value("height", 0);
-            windowRect = std::optional(rect);
+            windowSize.width = jWindow.value(
+                    "width",
+                    windowSize.width
+            );
+            windowSize.height = jWindow.value(
+                    "height",
+                    windowSize.height
+            );
+            windowPos = std::optional(Coord{
+                .x = jWindow.value("x", 0),
+                .y = jWindow.value("y", 0)
+            });
         }
 
         json jView = j["view"];
@@ -56,10 +103,11 @@ bool Config::tryReadFile() {
             shaderView.height = jView.value("height", shaderView.height);
         }
 
-        json jShaders = j["customShaders"];
+        json jShaders = j["shaders"];
         if (jShaders.is_object()) {
             customVertexShaderPath = jShaders.value("vertex", "");
             customFragmentShaderPath = jShaders.value("fragment", "");
+            hotReloadShaders = jShaders.value("reload", hotReloadShaders);
         }
 
         return true;
@@ -85,9 +133,10 @@ void Config::store(GLFWwindow* window) const {
                {"width", shaderView.width},
                {"height", shaderView.height},
             }},
-            {"customShaders", {
+            {"shaders", {
                {"vertex", customVertexShaderPath},
-               {"fragment", customVertexShaderPath}
+               {"fragment", customFragmentShaderPath},
+               {"reload", hotReloadShaders}
             }},
     };
 
@@ -103,9 +152,4 @@ void Config::store(GLFWwindow* window) const {
     } catch (const std::exception& e) {
         std::cerr << "Error storing Config: " << e.what() << std::endl;
     }
-}
-
-Config::Config(const std::string& filepath)
-: path(std::filesystem::path(filepath)) {
-    didRead = tryReadFile();
 }

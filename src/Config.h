@@ -19,10 +19,12 @@ struct Size {
     }
 };
 
-struct Rect : public Size {
+struct Coord {
     int x;
     int y;
+};
 
+struct Rect : public Size, public Coord {
     static Rect query(GLFWwindow* window) {
         Rect result{};
         glfwGetWindowSize(window, &result.width, &result.height);
@@ -40,38 +42,57 @@ struct RelativeRect {
 
 class Config {
 public:
+    const std::string defaultFilename = "smiuluator.cfg";
     std::filesystem::path path;
+
+    Size windowSize {
+        1000,
+        720
+    };
+    int udpPort = 3413;
 
     std::string customVertexShaderPath;
     std::string customFragmentShaderPath;
+    bool hotReloadShaders = true;
 
-    explicit Config(const std::string& filepath);
+    Config(int argc, char* argv[]);
 
     void restore(GLFWwindow* window);
     void store(GLFWwindow* window) const;
 
-    bool wasRead() { return didRead; };
+    [[nodiscard]]
+    bool wasRead() const { return didRead; };
 
-    Rect shaderRect(Size resolution) {
+    [[nodiscard]]
+    Rect shaderRect(Size resolution) const {
+        auto width = static_cast<float>(resolution.width);
+        auto height = static_cast<float>(resolution.height);
         return Rect{
             {
-                .width = static_cast<int>(shaderView.width * resolution.width),
-                .height = static_cast<int>(shaderView.height * resolution.height),
+                .width = static_cast<int>(shaderView.width * width),
+                .height = static_cast<int>(shaderView.height * height),
             },
-            static_cast<int>(shaderView.x * resolution.width),
-            static_cast<int>(shaderView.y * resolution.height),
+            static_cast<int>(shaderView.x * width),
+            static_cast<int>(shaderView.y * height),
         };
     };
+
+    [[nodiscard]]
+    inline float relativeRemainingWidth() const {
+        // assumes that .x is the left margin - might change
+        const float margin = shaderView.x;
+        return 1. - shaderView.width - shaderView.x - margin;
+    }
 
 private:
     bool tryReadFile();
 
     bool didRead = false;
-    std::optional<Rect> windowRect = std::nullopt;
+    std::optional<Coord> windowPos = std::nullopt;
     RelativeRect shaderView{
             .width = 0.5,
             .height = 0.9,
-            .x = 0.47,
+            .x = 0.05,
             .y = 0.05,
     };
 };

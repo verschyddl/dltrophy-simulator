@@ -23,31 +23,35 @@ private:
     ShaderMeta vertex = ShaderMeta(GL_VERTEX_SHADER);
     ShaderMeta fragment = ShaderMeta(GL_FRAGMENT_SHADER);
     ProgramMeta program;
-    void createProgram();
+    ProgramMeta createProgram();
+    void initializeProgram(const Config& config);
+    void teardown();
 
     GLuint vertexArrayObject = 0;
     GLuint vertexBufferObject = 0;
     void initVertices();
     static std::array<float, 18> createQuadVertices();
 
+    Uniform<float> iTime = Uniform<float>("iTime");
+    Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
+
     ShaderState *state;
     GLuint stateBufferId = 0;
     GLuint definitionBufferId = 0;
     void initUniformBuffers();
 
-    // TODO: think about unified handling of uniforms... somehow... someday...
-    Uniform<float> iTime = Uniform<float>("iTime");
-    Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
-
 public:
-    TrophyShader(Size resolution, Config config, ShaderState *state);
+    TrophyShader(const Config& config, ShaderState *state);
     ~TrophyShader();
 
     void use();
     void render(float time);
-    void assertCompileSuccess(const std::function<void(const std::string&)>& callback);
-    void onRectChange(Size resolution, Config config);
-    void recreate(Config config);
+    void assertCompileSuccess(const std::function<void(const std::string&)>& callback) const;
+    void onRectChange(Size resolution, const Config& config);
+    void recreate(const Config& config);
+    void mightHotReload(const Config& config);
+
+    bool debugFlag = false;
 };
 
 #endif //DLTROPHY_SIMULATOR_TROPHYSHADER_H

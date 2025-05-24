@@ -23,6 +23,8 @@ struct ShaderMeta {
     std::string source;
     GLuint id = 0;
     std::string error;
+    std::string filePath;
+    std::filesystem::file_time_type fileTime;
 
     explicit ShaderMeta(GLenum type): type(type) {}
 
@@ -32,10 +34,39 @@ struct ShaderMeta {
 
     void read(const std::string& path) {
         FileHelper::ensure(path);
-        std::ifstream file(path);
+        filePath = path;
+        read();
+    }
+
+    void read() {
+        std::ifstream file(filePath);
         std::stringstream buffer;
         buffer << file.rdbuf();
         source = buffer.str();
+
+        fileTime = std::filesystem::last_write_time(filePath);
+    }
+
+    void compile() {
+        id = glCreateShader(type);
+        const char* source_str = source.c_str();
+        glShaderSource(id, 1, &source_str, nullptr);
+        glCompileShader(id);
+        GLint status;
+        glGetShaderiv(id, GL_COMPILE_STATUS, &status);
+        if (status == GL_FALSE) {
+            GLint length;
+            glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
+            error.assign(length, ' ');
+            glGetShaderInfoLog(id, length, nullptr, &error[0]);
+            glDeleteShader(id);
+        }
+    }
+
+    [[nodiscard]]
+    bool fileHasChanged() const {
+        auto time = std::filesystem::last_write_time(filePath);
+        return fileTime != time;
     }
 };
 
@@ -46,23 +77,28 @@ struct ProgramMeta {
     operator GLuint() const {
         return id;
     }
+
+    [[nodiscard]]
+    bool works() const {
+        return id > 0 && error.empty();
+    }
 };
 
 template <typename T>
 struct Uniform {
 private:
     GLint location = 0;
-    const char* name;
+    std::string name;
 
 public:
     T value;
 
     explicit Uniform<T>(const std::string& name)
-            : name(name.c_str())
+            : name(name)
             {}
 
     void loadLocation(GLuint program) {
-        location = glGetUniformLocation(program, name);
+        location = glGetUniformLocation(program, name.c_str());
     }
 
     void set() {

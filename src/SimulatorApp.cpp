@@ -10,11 +10,10 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-SimulatorApp::SimulatorApp(int width, int height, int port)
-: config(config_file) {
+SimulatorApp::SimulatorApp(Config config)
+: config(config) {
 
-    window = initializeWindow(width, height,"QM's DL Trophy Smiuluator");
-
+    window = initializeWindow();
     gladLoadGL(glfwGetProcAddress);
 
     const char* glVersion = (const char*)glGetString(GL_VERSION);
@@ -24,15 +23,12 @@ SimulatorApp::SimulatorApp(int width, int height, int port)
         throw std::runtime_error("OpenGL not actually loaded - bad.");
     };
 
-    config.restore(window);
-    auto rect = Rect::query(window);
-
     trophy = new Trophy();
     state = new ShaderState(trophy);
-    shader = new TrophyShader(rect, config, state);
+    shader = new TrophyShader(config, state);
     shader->assertCompileSuccess(showError);
 
-    receiver = new UdpReceiver(port);
+    receiver = new UdpReceiver(config.udpPort);
 
     initializeKeyMap();
 }
@@ -48,9 +44,9 @@ SimulatorApp::~SimulatorApp() {
     glfwTerminate();
 }
 
-GLFWwindow* SimulatorApp::initializeWindow(int width, int height, const std::string& title) {
+GLFWwindow* SimulatorApp::initializeWindow() {
     if (!glfwInit()) {
-        throw std::runtime_error("Cannot restore GLFW");
+        throw std::runtime_error("Cannot initialize GLFW – and thus – anything.");
     }
 
     glfwSetErrorCallback(handleWindowError);
@@ -59,7 +55,14 @@ GLFWwindow* SimulatorApp::initializeWindow(int width, int height, const std::str
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+    window = glfwCreateWindow(
+            config.windowSize.width,
+            config.windowSize.height,
+            awesomeTitle.c_str(),
+            nullptr,
+            nullptr
+    );
+    config.restore(window);
 
     if (!window) {
         glfwTerminate();
@@ -84,6 +87,11 @@ GLFWwindow* SimulatorApp::initializeWindow(int width, int height, const std::str
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
+    imguiFlags = ImGuiWindowFlags_NoTitleBar |
+                 ImGuiWindowFlags_NoResize |
+                 ImGuiWindowFlags_NoMove |
+                 ImGuiWindowFlags_AlwaysAutoResize;
+
     return window;
 }
 
@@ -98,10 +106,9 @@ void SimulatorApp::run() {
     // TODO: replace when we have a better idea for development
     state->randomize();
 
-    trophy->printDebug();
-
     while (!glfwWindowShouldClose(window)) {
-
+        glfwPollEvents();
+        glfwGetFramebufferSize(window, &area.width, &area.height);
         buildImguiControls();
 
         shader->use();
@@ -110,13 +117,13 @@ void SimulatorApp::run() {
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
         glfwSwapBuffers(window);
 
-        glfwPollEvents();
         handleMouseInput();
 
         handleUdpMessages();
+
+        shader->mightHotReload(config);
     }
 
     config.store(window);
@@ -218,23 +225,57 @@ void SimulatorApp::buildImguiControls() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    ImGui::Begin("Deadline Trophy Smiuluator");
 
-    ImGui::Text("This is a window with a fragment shader!");
+    float panelMargin = 0.03 * area.width;
+    float panelWidth = config.relativeRemainingWidth() * area.width - panelMargin;
+    ImGui::SetNextWindowPos(
+            ImVec2(area.width - panelWidth - panelMargin, panelMargin),
+            ImGuiCond_Always
+    );
+    ImGui::SetNextWindowSize(
+            ImVec2(panelWidth, area.height - 2. * panelMargin),
+            ImGuiCond_Always
+    );
 
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 16));
+    ImGui::Begin("Deadline Trophy Smiuluator", NULL, imguiFlags);
+    ImGui::PopStyleVar();
+
+    const int styleVars = 4;
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(16, 8));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 16));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(16, 8));
+    ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 20);
+
+    ImGui::PushItemWidth(-1.f);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(210.f, 0.6f, 0.6f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(210.f, 0.75f, 0.8f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(210.f, 0.8f, 0.9f));
     if (ImGui::Button("Reload Shader")) {
         shader->recreate(config);
     }
+    ImGui::SameLine();
+    ImGui::Checkbox("Hot Reload", &config.hotReloadShaders);
+    ImGui::PopStyleColor(3);
+
+    if (ImGui::Button("Randomize LED colors")) {
+        state->randomize();
+    }
+    if (ImGui::Button("Print LED positions")) {
+        trophy->printDebug();
+    }
+
+    ImGui::PopItemWidth();
 
     ImGui::SliderFloat("LED size",
                        &state->params.ledSize,
-                       1.e-3,
-                       1.f);
+                       1.e-3, 1.e-1);
     ImGui::SliderFloat("LED grading",
                        &state->params.ledExponent,
-                       0.01f,
-                       5.f);
+                       0.01f, 5.f);
 
+    ImGui::PopStyleVar(styleVars);
     ImGui::End();
 }
 

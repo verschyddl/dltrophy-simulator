@@ -1,10 +1,11 @@
 #include <iostream>
 #include "SimulatorApp.h"
 
-int main() {
+int main(int argc, char* argv[]) {
 
     try {
-        SimulatorApp app(1280, 720, 3413);
+        Config config(argc, argv);
+        SimulatorApp app(config);
         app.run();
         return 0;
     }

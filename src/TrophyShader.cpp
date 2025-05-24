@@ -9,7 +9,7 @@
 const std::string default_vertex_shader_path = "./shaders/vertex.glsl";
 const std::string default_fragment_shader_path = "./shaders/fragment.glsl";
 
-TrophyShader::TrophyShader(Size resolution, Config config, ShaderState *state)
+TrophyShader::TrophyShader(const Config& config, ShaderState *state)
 : state(state) {
     vertex.read(FileHelper::first_if_exists(
             config.customVertexShaderPath,
@@ -19,77 +19,105 @@ TrophyShader::TrophyShader(Size resolution, Config config, ShaderState *state)
             config.customFragmentShaderPath,
             default_fragment_shader_path
     ));
-    createProgram();
+    program = createProgram();
+    initializeProgram(config);
+}
 
+TrophyShader::~TrophyShader() {
+    teardown();
+}
+
+void TrophyShader::initializeProgram(const Config& config) {
     glUseProgram(program);
     iTime.loadLocation(program);
     iRect.loadLocation(program);
 
     initUniformBuffers();
-
-    onRectChange(resolution, config);
+    
+    onRectChange(config.windowSize, config);
 }
 
-TrophyShader::~TrophyShader() {
-    if (program.id) {
+void TrophyShader::teardown() {
+    if (program.works()) {
         glDeleteProgram(program);
     }
-
     glDeleteVertexArrays(1, &vertexArrayObject);
     glDeleteBuffers(1, &vertexBufferObject);
-
     glDeleteBuffers(1, &stateBufferId);
     glDeleteBuffers(1, &definitionBufferId);
 }
 
-void TrophyShader::onRectChange(Size resolution, Config config) {
+void TrophyShader::onRectChange(Size resolution, const Config& config) {
     auto rect = config.shaderRect(resolution);
     iRect.value = glm::vec4(rect.x, rect.y, rect.width, rect.height);
     glViewport(rect.x, rect.y, rect.width, rect.height);
     initVertices();
 }
 
-void TrophyShader::recreate(Config config) {
-    std::cout << "Tja, ist aber noch nicht implementiert. Sorrie!" << std::endl;
-}
+void TrophyShader::recreate(const Config& config) {
+    vertex.read();
+    fragment.read();
 
-void compileShader(ShaderMeta& shader) {
-    shader.id = glCreateShader(shader.type);
-    const char* source = shader.source.c_str();
-    glShaderSource(shader.id, 1, &source, nullptr);
-    glCompileShader(shader.id);
-
-    GLint status;
-    glGetShaderiv(shader.id, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLint length;
-        glGetShaderiv(shader.id, GL_INFO_LOG_LENGTH, &length);
-        shader.error.assign(length, ' ');
-        glGetShaderInfoLog(shader.id, length, nullptr, &shader.error[0]);
-        glDeleteShader(shader.id);
+    auto newProgram = createProgram();
+    if (newProgram.error.empty()) {
+        teardown();
+        program = newProgram;
+        initializeProgram(config);
+    } else {
+        if (!vertex.error.empty()) {
+            std::cerr << "Error in Vertex Shader: " << vertex.filePath << std::endl
+                      << vertex.error << std::endl;
+        }
+        if (!fragment.error.empty()) {
+            std::cerr << "Error in Fragment Shader:" << fragment.filePath << std::endl
+                      << fragment.error << std::endl;
+        }
+        std::cerr << "Could not recreate shaders because it's bad, man, it's bad." << std::endl;
     }
 }
 
-void TrophyShader::createProgram() {
-    compileShader(vertex);
-    compileShader(fragment);
+void TrophyShader::mightHotReload(const Config &config) {
+    if (!config.hotReloadShaders) {
+        return;
+    }
+    auto vertexShaderChanged = vertex.fileHasChanged();
+    auto fragmentShaderChanged = fragment.fileHasChanged();
+    if (vertexShaderChanged || fragmentShaderChanged) {
+        recreate(config);
+    }
 
-    program.id = glCreateProgram();
-    glAttachShader(program, vertex);
-    glAttachShader(program, fragment);
-    glLinkProgram(program);
+    if (vertexShaderChanged) {
+        std::cout << "Hot Reload due to Vertex Shader change: "
+                  << vertex.filePath << std::endl;
+    }
+    if (fragmentShaderChanged) {
+        std::cout << "Hot Reload due to Fragment Shader change: "
+                  << fragment.filePath << std::endl;
+    }
+}
+
+ProgramMeta TrophyShader::createProgram() {
+    vertex.compile();
+    fragment.compile();
+
+    ProgramMeta prog;
+    prog.id = glCreateProgram();
+    glAttachShader(prog, vertex);
+    glAttachShader(prog, fragment);
+    glLinkProgram(prog);
     GLint success;
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    glGetProgramiv(prog, GL_LINK_STATUS, &success);
     if (!success) {
-        glGetProgramInfoLog(program, 512, nullptr, &program.error[0]);
-        glDeleteProgram(program);
+        glGetProgramInfoLog(prog, 512, nullptr, &prog.error[0]);
+        glDeleteProgram(prog);
     }
 
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+    return prog;
 }
 
-void TrophyShader::assertCompileSuccess(const std::function<void(const std::string&)>& callback) {
+void TrophyShader::assertCompileSuccess(const std::function<void(const std::string&)>& callback) const {
     std::string message;
     if (!vertex.error.empty()) {
         message += "Vertex Shader Error:\n\n" + vertex.error + "\n";
@@ -170,7 +198,7 @@ void TrophyShader::initUniformBuffers() {
     glBindBuffer(GL_UNIFORM_BUFFER, definitionBufferId);
     glBufferData(GL_UNIFORM_BUFFER,
                  state->trophy->alignedTotalSize(),
-                 NULL,
+                 nullptr,
                  GL_STATIC_DRAW);
     glBufferSubData(GL_UNIFORM_BUFFER,
                     0,
@@ -190,21 +218,24 @@ void TrophyShader::initUniformBuffers() {
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     glBufferData(GL_UNIFORM_BUFFER,
                  state->alignedTotalSize(),
-                 NULL,
+                 nullptr,
                  GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 void TrophyShader::use() {
-    if (!program.error.empty()) {
+    if (!program.works()) {
         throw std::runtime_error("Cannot use program, because linking failed.");
     }
     glClear(GL_COLOR_BUFFER_BIT);
-    glUseProgram(program.id);
+    glUseProgram(program);
 }
 
 void TrophyShader::render(float time) {
+    if (debugFlag) {
+        debugFlag = false;
+    }
 
     iTime.set(time);
     iRect.set();

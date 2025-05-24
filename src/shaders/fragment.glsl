@@ -2,9 +2,11 @@
 
 precision highp float;
 out vec4 fragColor;
+out int clickedLedIndex;
 
 uniform float iTime;
 uniform vec4 iRect;
+uniform vec4 iMouse;
 
 const int nLeds = 172;
 
@@ -240,6 +242,10 @@ void main() {
 
         // col = mix(fragColor.rgb, col, exp(-0.0001 * pow(hit.sd, 3.)));
     }
+
+    bool hovered = distance(iMouse.xy, gl_FragCoord.xy) < 1.;
+    bool clicked = iMouse.z > 0 && hovered;
+    clickedLedIndex = clicked ? hit.ledIndex : -1;
 
     if (showGrid) {
         col += 0.2 * grid;
