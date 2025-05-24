@@ -23,13 +23,21 @@ layout(std140) uniform StateBuffer {
     RGB ledColor[nLeds];
     float ledSize;
     float ledExponent;
+
+    float camX, camY, camZ, camFov, camTilt;
+    float diffuseAmount, specularAmount, specularGrading;
+    float fogScaling, fogGrading;
+    float floorSpacingX, floorSpacingY, floorLineWidth;
+
     int options;
 };
 
-bool showGrid = (options & (1 << 0)) != 0;
-bool debug1 = (options & (1 << 1)) != 0;
-bool debug2 = (options & (1 << 2)) != 0;
-bool debug3 = (options & (1 << 3)) != 0;
+#define hasOption(index) (options & (1 << index)) != 0
+
+bool showGrid = hasOption(0);
+bool debug1 = hasOption(1);
+bool debug2 = hasOption(2);
+bool debug3 = hasOption(3);
 
 vec3 to_vec(RGB rgb) {
     return vec3(rgb.r, rgb.g, rgb.b) / 255.;
@@ -39,6 +47,13 @@ const float pi = 3.14159265;
 const float rad = pi / 180.;
 const float tau = 2. * pi;
 const vec4 c = vec4(1., 0., -1., .5);
+
+const int MISS = -1;
+const int LED_MATERIAL = 0;
+const int FLOOR_MATERIAL = 1;
+
+const vec3 borderDark = vec3(0.4);
+const vec3 borderLight = vec3(0.6);
 
 vec2 iResolution = iRect.zw;
 float aspectRatio = iResolution.x / iResolution.y;
@@ -65,6 +80,8 @@ vec3 draw_grid(in vec2 uv) {
 
 // 3D GEOMETRY
 
+#define clampVec3(x) clamp(x, vec3(0), vec3(1));
+
 const vec2 epsilon = c.xz * 0.0005;
 
 mat3 rotateX(float theta) {
@@ -82,10 +99,6 @@ struct Marched {
     int material;
     int ledIndex;
 };
-
-const int MISS = -1;
-const int LED_MATERIAL = 0;
-const int FLOOR_MATERIAL = 1;
 
 Marched sdFloor(vec3 p, float level) {
     float d = p.y - level;
@@ -155,26 +168,20 @@ Marched marchRay(vec3 ro, vec3 rd) {
 }
 
 vec3 floorColor = vec3(0., 0.73 - 0.2 * cos(iTime), 0.94 - 0.05 * sin(0.4 * iTime));
+vec2 floorSpacing = vec2(floorSpacingX, floorSpacingY);
 
 vec3 materialColor(Marched hit, vec3 ray) {
     switch (hit.material) {
         case LED_MATERIAL:
             return to_vec(ledColor[hit.ledIndex]);
         case FLOOR_MATERIAL:
-            vec2 spacing = vec2(5.21);
-            vec2 grid = mod(ray.xz, spacing);
-            vec2 dist = min(grid, spacing - grid);
-            float width = .3;
-            return floorColor * clamp(width - min(dist.x, dist.y), 0., 1.);
+            vec2 grid = mod(ray.xz, floorSpacing);
+            vec2 dist = min(grid, floorSpacing - grid);
+            return floorColor * clamp(floorLineWidth - min(dist.x, dist.y), 0., 1.);
         default:
             return c.xyy; // Signalfarbe Rot, weil darf nicht sein.
     }
 }
-
-#define clampVec3(x) clamp(x, vec3(0), vec3(1));
-
-vec3 borderDark = vec3(0.4);
-vec3 borderLight = vec3(0.6);
 
 void main() {
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;
@@ -195,30 +202,10 @@ void main() {
         fragColor.rgb = 0.5 * grid;
     }
 
-    if (debug3) {
-        // Test 2D Rendering only
-        float d;
-        for (int i = 0; i < nLeds; i++) {
-            d = distance(uv, ledPosition[i].xy);
-            d = exp(-pow(abs(d), ledExponent) / ledSize);
-            col += d * to_vec(ledColor[i]);
-        }
-        fragColor.rgb = clampVec3(col);
-        return;
-    }
-
-    const vec3 cameraPosition = vec3(0., 0.17, -1.8);
-    const float fieldOfView = 1.3;
-    const float cameraTilt = 12.3;
-
-    vec3 ro = cameraPosition;
-    vec3 rd = normalize(vec3(uv, fieldOfView));
-    rd *= rotateX(cameraTilt * rad);
+    vec3 ro = vec3(camX, camY, camZ);
+    vec3 rd = normalize(vec3(uv, camFov));
+    rd *= rotateX(camTilt * rad);
     vec3 ray, normal, refl, sunPos, sunDir;
-
-    const float diffuseAmount = 0.7;
-    const float specularAmount = 0.4;
-    const float specularGrading = 2.1;
 
     Marched hit = marchRay(ro, rd);
     float d = hit.sd;
@@ -240,7 +227,7 @@ void main() {
         specular = pow(specular, specularGrading);
         d = mix(d, specular, specularAmount);
 
-        // col = mix(fragColor.rgb, col, exp(-0.0001 * pow(hit.sd, 3.)));
+        col = mix(fragColor.rgb, col, exp(-fogScaling * pow(hit.sd, fogGrading)));
     }
 
     bool hovered = distance(iMouse.xy, gl_FragCoord.xy) < 1.;

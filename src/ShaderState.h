@@ -54,9 +54,14 @@ struct ShaderOptions {
 };
 
 struct Parameters {
-    // has only floats - i.e. is aligned to 4 bytes
+    // if only floats (or other 4 byte-data), this makes alignment easy
+    // therefore e.g. do not keep camera position as vec3 -> gets annoying
     float ledSize;
-    float ledExponent;
+    float ledGlow;
+    float camX, camY, camZ, camFov, camTilt;
+    float diffuseMix, specularMix, specularGrading;
+    float fogScaling, fogGrading;
+    float floorSpacingX, floorSpacingY, floorLineWidth;
 };
 
 struct ShaderState {
@@ -66,11 +71,24 @@ struct ShaderState {
 
     Parameters params {
         .ledSize = 0.022,
-        .ledExponent = 0.8,
+        .ledGlow = 0.8,
+        .camX = 0.,
+        .camY = 0.17,
+        .camZ = -1.8,
+        .camFov = 1.3,
+        .camTilt = 12.3,
+        .diffuseMix = 0.7,
+        .specularMix = 0.40,
+        .specularGrading = 2.1,
+        .fogScaling = 0.0001,
+        .fogGrading = 3.,
+        .floorSpacingX = 5.21,
+        .floorSpacingY = 5.21,
+        .floorLineWidth = .3,
     };
     ShaderOptions options {
-        .showGrid = true,
-        .debug3 = true, // just to check
+        .showGrid = false,
+        .debug3 = true, // just to check it works
     };
 
     explicit ShaderState(Trophy* trophy):

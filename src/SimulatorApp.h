@@ -33,8 +33,9 @@ private:
     GLFWwindow* initializeWindow();
     static void handleWindowError(int error, const char* description);
     Size area;
+    void handleResize();
     ImGuiWindowFlags imguiFlags;
-    void buildImguiControls();
+    void buildControlPanel();
 
     KeyMap keyMap;
     void initializeKeyMap();

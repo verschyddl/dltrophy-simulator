@@ -23,8 +23,11 @@ SimulatorApp::SimulatorApp(Config config)
         throw std::runtime_error("OpenGL not actually loaded - bad.");
     };
 
+    glfwGetFramebufferSize(window, &area.width, &area.height);
+
     trophy = new Trophy();
     state = new ShaderState(trophy);
+
     shader = new TrophyShader(config, state);
     shader->assertCompileSuccess(showError);
 
@@ -100,27 +103,25 @@ void SimulatorApp::handleWindowError(int error, const char* description) {
 }
 
 void SimulatorApp::run() {
-
-    startTime = static_cast<float>(glfwGetTime());
-
     // TODO: replace when we have a better idea for development
     state->randomize();
 
+    startTime = static_cast<float>(glfwGetTime());
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        glfwGetFramebufferSize(window, &area.width, &area.height);
-        buildImguiControls();
+        handleResize();
+        buildControlPanel();
 
         shader->use();
-        auto elapsedTime = handleElapsedTime();
-        shader->render(elapsedTime);
+        shader->iTime.set(handleElapsedTime());
+        shader->render();
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
 
         handleMouseInput();
-
         handleUdpMessages();
 
         shader->mightHotReload(config);
@@ -182,16 +183,6 @@ void SimulatorApp::initializeKeyMap() {
         [this](int mods) {
             state->params.ledSize /= 1.05;
         }
-    }, {
-        GLFW_KEY_E,
-        [this](int mods) {
-            state->params.ledExponent -= 0.01;
-        }
-    }, {
-        GLFW_KEY_R,
-        [this](int mods) {
-            state->params.ledExponent += 0.01;
-        }
     }};
 }
 
@@ -221,12 +212,23 @@ void SimulatorApp::handleUdpMessages() {
               << std::endl;
 }
 
-void SimulatorApp::buildImguiControls() {
+void SimulatorApp::handleResize() {
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    if (width == area.width && height == area.height) {
+        return;
+    }
+    area.width = width;
+    area.height = height;
+    shader->onRectChange(area, config);
+}
+
+void SimulatorApp::buildControlPanel() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    float panelMargin = 0.03 * area.width;
+    float panelMargin = 0.02 * area.width;
     float panelWidth = config.relativeRemainingWidth() * area.width - panelMargin;
     ImGui::SetNextWindowPos(
             ImVec2(area.width - panelWidth - panelMargin, panelMargin),
@@ -241,23 +243,39 @@ void SimulatorApp::buildImguiControls() {
     ImGui::Begin("Deadline Trophy Smiuluator", NULL, imguiFlags);
     ImGui::PopStyleVar();
 
-    const int styleVars = 4;
+    const int globalStyleVars = 4;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(16, 8));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 16));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(16, 8));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 12));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(10, 8));
     ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 20);
-
-    ImGui::PushItemWidth(-1.f);
 
     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(210.f, 0.6f, 0.6f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(210.f, 0.75f, 0.8f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(210.f, 0.8f, 0.9f));
     if (ImGui::Button("Reload Shader")) {
-        shader->recreate(config);
+        shader->reload(config);
     }
+    ImGui::PopStyleColor(3);
+
     ImGui::SameLine();
     ImGui::Checkbox("Hot Reload", &config.hotReloadShaders);
-    ImGui::PopStyleColor(3);
+
+    if (shader->lastReload.has_value()) {
+        auto tm = *std::localtime(&shader->lastReload.value());
+        ImGui::SameLine();
+        ImGui::Text("(last: %u:%u:%u)", tm.tm_hour, tm.tm_min, tm.tm_sec);
+    }
+
+    auto stop = 0.33f * panelWidth;
+    ImGui::Text("Time:");
+    ImGui::SameLine(stop);
+    ImGui::Text( "%5.2f sec.", shader->iTime.value);
+    ImGui::Text("Resolution:");
+    ImGui::SameLine(stop);
+    ImGui::Text( "%.0f x %.0f", shader->iRect.value.z, shader->iRect.value.w);
+    ImGui::Text("Frame Offset:");
+    ImGui::SameLine(stop);
+    ImGui::Text("%.0f x %.0f", shader->iRect.value.x, shader->iRect.value.y);
 
     if (ImGui::Button("Randomize LED colors")) {
         state->randomize();
@@ -266,16 +284,14 @@ void SimulatorApp::buildImguiControls() {
         trophy->printDebug();
     }
 
-    ImGui::PopItemWidth();
-
     ImGui::SliderFloat("LED size",
                        &state->params.ledSize,
                        1.e-3, 1.e-1);
-    ImGui::SliderFloat("LED grading",
-                       &state->params.ledExponent,
+    ImGui::SliderFloat("LED glow",
+                       &state->params.ledGlow,
                        0.01f, 5.f);
 
-    ImGui::PopStyleVar(styleVars);
+    ImGui::PopStyleVar(globalStyleVars);
     ImGui::End();
 }
 

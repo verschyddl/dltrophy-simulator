@@ -54,7 +54,7 @@ void TrophyShader::onRectChange(Size resolution, const Config& config) {
     initVertices();
 }
 
-void TrophyShader::recreate(const Config& config) {
+void TrophyShader::reload(const Config& config) {
     vertex.read();
     fragment.read();
 
@@ -63,6 +63,9 @@ void TrophyShader::recreate(const Config& config) {
         teardown();
         program = newProgram;
         initializeProgram(config);
+        lastReload = std::chrono::system_clock::to_time_t(
+                std::chrono::system_clock::now()
+        );
     } else {
         if (!vertex.error.empty()) {
             std::cerr << "Error in Vertex Shader: " << vertex.filePath << std::endl
@@ -72,7 +75,7 @@ void TrophyShader::recreate(const Config& config) {
             std::cerr << "Error in Fragment Shader:" << fragment.filePath << std::endl
                       << fragment.error << std::endl;
         }
-        std::cerr << "Could not recreate shaders because it's bad, man, it's bad." << std::endl;
+        std::cerr << "Could not reload shaders because it's bad, man, it's bad." << std::endl;
     }
 }
 
@@ -83,7 +86,7 @@ void TrophyShader::mightHotReload(const Config &config) {
     auto vertexShaderChanged = vertex.fileHasChanged();
     auto fragmentShaderChanged = fragment.fileHasChanged();
     if (vertexShaderChanged || fragmentShaderChanged) {
-        recreate(config);
+        reload(config);
     }
 
     if (vertexShaderChanged) {
@@ -149,6 +152,13 @@ std::array<float, 18> TrophyShader::createQuadVertices() {
 }
 
 void TrophyShader::initVertices() {
+    if (vertexArrayObject) {
+        glDeleteVertexArrays(1, &vertexArrayObject);
+    }
+    if (vertexBufferObject) {
+        glDeleteBuffers(1, &vertexBufferObject);
+    }
+
     glGenVertexArrays(1, &vertexArrayObject);
     glBindVertexArray(vertexArrayObject);
 
@@ -232,12 +242,11 @@ void TrophyShader::use() {
     glUseProgram(program);
 }
 
-void TrophyShader::render(float time) {
+void TrophyShader::render() {
     if (debugFlag) {
         debugFlag = false;
     }
 
-    iTime.set(time);
     iRect.set();
 
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);

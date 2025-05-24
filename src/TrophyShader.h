@@ -32,9 +32,6 @@ private:
     void initVertices();
     static std::array<float, 18> createQuadVertices();
 
-    Uniform<float> iTime = Uniform<float>("iTime");
-    Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
-
     ShaderState *state;
     GLuint stateBufferId = 0;
     GLuint definitionBufferId = 0;
@@ -44,13 +41,17 @@ public:
     TrophyShader(const Config& config, ShaderState *state);
     ~TrophyShader();
 
+    Uniform<float> iTime = Uniform<float>("iTime");
+    Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
+
     void use();
-    void render(float time);
+    void render();
     void assertCompileSuccess(const std::function<void(const std::string&)>& callback) const;
     void onRectChange(Size resolution, const Config& config);
-    void recreate(const Config& config);
+    void reload(const Config& config);
     void mightHotReload(const Config& config);
 
+    std::optional<std::time_t> lastReload;
     bool debugFlag = false;
 };
 

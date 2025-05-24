@@ -46,7 +46,7 @@ public:
     std::filesystem::path path;
 
     Size windowSize {
-        1000,
+        1080,
         720
     };
     int udpPort = 3413;
