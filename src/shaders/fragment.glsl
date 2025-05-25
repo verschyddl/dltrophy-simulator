@@ -27,24 +27,23 @@ layout(std140) uniform StateBuffer {
     RGB ledColor[nLeds];
     float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
-    float fogScaling, fogGrading;
+    float fogScaling, fogGrading, backgroundSpin;
     float floorSpacingX, floorSpacingZ,
           floorLineWidth, floorExponent, floorGrading;
     float pyramidX, pyramidY, pyramidZ,
           pyramidScale, pyramidHeight,
           pyramidAngle, pyramidAngularVelocity;
     float epoxyPermittivity;
-    float backgroundSpin;
-
+    float blendPreviousMixing;
     int options;
 };
 
 #define hasOption(index) (options & (1 << (8 * index))) != 0
 
 bool showGrid = hasOption(0);
-bool disableAccumulation = hasOption(1);
-bool debug1 = hasOption(2);
-bool debug2 = hasOption(3);
+bool accumulateForever = hasOption(1);
+bool noStochasticVariation = hasOption(2);
+bool debug = hasOption(3);
 
 vec3 to_vec(RGB rgb) {
     return vec3(rgb.r, rgb.g, rgb.b) / 255.;
@@ -377,14 +376,14 @@ vec3 surfaceColor(Marched hit, vec3 ray) {
 Marched traceScene(Ray ray) {
     vec3 col = c.yyy;
     Marched hit;
-    Marched first_hit;
+    Marched direct_hit;
     Ray scatRay;
     int r;
 
     for (r = 0; r < MAX_RECURSION; r++) {
         hit = marchScene(ray);
         if (r == 0) {
-            first_hit = hit;
+            direct_hit = hit;
         }
         if (hit.sd >= MAX_DIST) {
             break;
@@ -408,7 +407,7 @@ Marched traceScene(Ray ray) {
     for (int r=0; r < MAX_RECURSION; r++) {
         hit = marchScene(ray);
         if (r == 0) {
-            first_hit = hit;
+            direct_hit = hit;
         }
         if (hit.sd >= MAX_DIST) {
             hit.material = MISS;
@@ -425,7 +424,7 @@ Marched traceScene(Ray ray) {
         ray = scatRay;
     }
 
-    col = surfaceColor(first_hit, advance(ray, first_hit.sd));
+    col = surfaceColor(direct_hit, advance(ray, direct_hit.sd));
     // hit.color = mix(hit.color, col, .5);
     return hit;
 }
@@ -438,12 +437,14 @@ void postProcess(inout vec3 col, in vec2 uv) {
 }
 
 void main() {
-    vec2 st = (gl_FragCoord.xy) / (iResolution + iRect.xy);
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;
 
     uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
-    globalSeed = float(base_hash(bits))/float(0xffffffffU)+iTime;
-    uv += hash2(globalSeed) / iResolution;
+    globalSeed = float(base_hash(bits))/float(0xffffffffU);
+    if (!noStochasticVariation) {
+        globalSeed += iTime;
+        uv += hash2(globalSeed) / iResolution;
+    }
 
     fragColor = c.xxxy;
     vec3 col = fragColor.rgb;
@@ -485,20 +486,26 @@ void main() {
 
     fragColor = vec4(clampVec3(col), 1.);
 
-    if (disableAccumulation) {
-        return;
-    }
-
+    // blend previous image
+    vec2 st = (gl_FragCoord.xy) / (iResolution + iRect.xy);
     vec4 previousImage = texture(iPreviousImage, st);
 
     if (iPass == 1) {
+        // second pass is designed universal
         col = previousImage.rgb / previousImage.a;
         postProcess(col, uv);
         fragColor = vec4(col, 1.);
         return;
     }
 
-    if (iFrame > 0) {
-        fragColor += previousImage;
+    if (accumulateForever) {
+        // forever-accumulating uses the alpha channel to count the weight.
+        if (iFrame > 0) {
+            fragColor += previousImage;
+        }
+        return;
     }
+
+    fragColor.rgb = mix(previousImage.rgb, fragColor.rgb, blendPreviousMixing);
+    fragColor.a = 1.;
 }

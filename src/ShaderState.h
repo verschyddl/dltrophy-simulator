@@ -45,12 +45,12 @@ public:
 };
 
 struct ShaderOptions {
+    // this needs minimum alignment (GLint = 4 bytes), therefore a multiple of 4 of flags.
+    // (well, at the end of the std140 layout this could even deviate, but don't rely on that.)
     bool showGrid;
-    bool disableAccumulation;
-
-    // need minimum alignment (GLint = 4 bytes), therefore:
-    bool debug1 = false;
-    bool debug2 = false;
+    bool accumulateForever;
+    bool noStochasticVariation;
+    bool debug;
 };
 
 struct Parameters {
@@ -58,11 +58,11 @@ struct Parameters {
     // therefore e.g. do not keep camera position as vec3 -> gets annoying
     float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
-    float fogScaling, fogGrading;
+    float fogScaling, fogGrading, backgroundSpin;
     float floorSpacingX, floorSpacingZ, floorLineWidth, floorExponent, floorGrading;
     float pyramidX, pyramidY, pyramidZ, pyramidScale, pyramidHeight, pyramidAngle, pyramidAngularVelocity;
     float epoxyPermittivity;
-    float backgroundSpin;
+    float blendPreviousMixing;
 };
 
 struct ShaderState {
@@ -80,6 +80,7 @@ struct ShaderState {
         .camTilt = 12.3,
         .fogScaling = 0.0001,
         .fogGrading = 1.9,
+        .backgroundSpin = 0.1,
         .floorSpacingX = 2.21,
         .floorSpacingZ = 5.21,
         .floorLineWidth = .05,
@@ -88,16 +89,18 @@ struct ShaderState {
         .pyramidX = 0.,
         .pyramidY = -.5,
         .pyramidZ = 0.,
-        .pyramidScale = 1.73,
+        .pyramidScale = 1.26,
         .pyramidHeight = 0.85,
         .pyramidAngle = -10.,
         .pyramidAngularVelocity = 0.,
         .epoxyPermittivity = 1.1,
-        .backgroundSpin = 0.1,
+        .blendPreviousMixing = 0.3,
     };
     ShaderOptions options {
         .showGrid = false,
-        .disableAccumulation = true,
+        .accumulateForever = false,
+        .noStochasticVariation = false,
+        .debug = false,
     };
 
     explicit ShaderState(Trophy* trophy):

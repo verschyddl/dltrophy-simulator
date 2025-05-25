@@ -94,16 +94,21 @@ void TrophyShader::mightHotReload(const Config &config) {
     }
 
     reload(config);
-    std::cout << "lastReload: " << lastReload.value() << std::endl;
-
-    if (vertexShaderChanged) {
-        std::cout << "Hot Reload due to Vertex Shader change: "
-                  << vertex.filePath << std::endl;
+    auto info = lastReloadInfo();
+    std::cout << "Hot Reload: " << info.first;
+    if (!info.second.empty()) {
+        std::cout << " -- " << info.second;
     }
-    if (fragmentShaderChanged) {
-        std::cout << "Hot Reload due to Fragment Shader change: "
-                  << fragment.filePath << std::endl;
+    if (!fragmentShaderChanged) {
+        std::cout << " -- Vertex Shader: " << vertex.filePath;
     }
+    else if (!vertexShaderChanged) {
+        std::cout << " -- Fragment Shader: " << fragment.filePath;
+    }
+    else {
+        std::cout << " -- Fragment & Vertex Shader.";
+    }
+    std::cout << std::endl;
 }
 
 ProgramMeta TrophyShader::createProgram() {
@@ -343,7 +348,8 @@ void TrophyShader::render() {
 }
 
 const std::pair<std::string, std::string> TrophyShader::lastReloadInfo() const {
-    // first: message (last success time / fail), second: error message (empty string if success)
+    // .first  = message (last success time / fail)
+    // .second = error message (empty string if success)
     std::pair<std::string, std::string> result{"", ""};
     if (!lastReload.has_value()) {
         return result;
@@ -353,7 +359,10 @@ const std::pair<std::string, std::string> TrophyShader::lastReloadInfo() const {
         result.second = collectErrorLogs();
     } else {
         auto tm = *std::localtime(&lastReload.value());
-        result.first = std::format("-- last: {:02d}:{:02d}:{:02d}", tm.tm_hour, tm.tm_min, tm.tm_sec);
+        result.first = std::format("-- last: {:02d}:{:02d}:{:02d}",
+                                   tm.tm_hour,
+                                   tm.tm_min,
+                                   tm.tm_sec);
     }
     return result;
 }

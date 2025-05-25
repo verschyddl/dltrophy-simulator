@@ -198,17 +198,17 @@ void SimulatorApp::initializeKeyMap() {
     }, {
         GLFW_KEY_A,
         [this](int mods) {
-            toggle(state->options.disableAccumulation);
+            toggle(state->options.accumulateForever);
         }
     }, {
-        GLFW_KEY_1,
+        GLFW_KEY_S,
         [this](int mods) {
-            toggle(state->options.debug1);
+            toggle(state->options.noStochasticVariation);
         }
     }, {
-        GLFW_KEY_2,
+        GLFW_KEY_D,
         [this](int mods) {
-            toggle(state->options.debug2);
+            toggle(state->options.debug);
         }
     }};
 }
@@ -319,71 +319,98 @@ void SimulatorApp::buildControlPanel() {
         printDebug();
     }
 
-    stop = 0.15f * panelWidth;
-    ImGui::PushItemWidth(stop);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
-    ImGui::SliderFloat("##Camera X",
-                       &state->params.camX,
-                       -1.f, +1.f);
-    ImGui::SameLine();
-    ImGui::SliderFloat("##Camera Y",
-                       &state->params.camY,
-                       -1.f, +1.f);
-    ImGui::SameLine();
-    ImGui::SliderFloat("##Camera Z",
-                       &state->params.camZ,
-                       -5.f, -1.f);
-    ImGui::SameLine();
-    ImGui::Text("Camera Origin");
-    ImGui::PopStyleVar();
-    ImGui::PopItemWidth();
+    ImGui::PushItemWidth(0.32f * panelWidth);
 
-    ImGui::PushItemWidth(2. * stop);
-    ImGui::SliderFloat("Camera FOV",
-                       &state->params.camFov,
-                       0.1f, 2.1f);
-    ImGui::SliderFloat("Camera Tilt",
-                       &state->params.camTilt,
-                       -60.f, 60.f);
-    ImGui::SliderFloat("LED size",
-                       &state->params.ledSize,
-                       1.e-3, 1.e-1);
-    ImGui::SliderFloat("Fog Grading",
-                       &state->params.fogGrading,
-                       0.1f, 5.f);
-    ImGui::SliderFloat("Background Spin",
-                       &state->params.backgroundSpin,
-                       0.f, 100.f);
-    ImGui::SliderFloat("Synthwave Grid Thickness",
-                       &state->params.floorLineWidth,
-                       0.001f, 1.f);
-    ImGui::SliderFloat("Synthwave Grid Exponent",
-                       &state->params.floorExponent,
-                       0.001f, 100.f);
-    ImGui::SliderFloat("Synthwave Grid Glow",
-                       &state->params.floorGrading,
-                       0.001f, 20.f);
-    ImGui::SliderFloat("Pyramid Scale",
-                       &state->params.pyramidScale,
-                       1e-3f, 2.f);
-    ImGui::SliderFloat("Pyramid Y",
-                       &state->params.pyramidY,
-                       -2.f, 2.f);
-    ImGui::SliderFloat("Pyramid Height",
-                       &state->params.pyramidHeight,
-                       0.f, 5.f);
-    ImGui::SliderFloat("Pyramid Rotation Angle",
-                       &state->params.pyramidAngle,
-                       -180.f, 180.f);
-    ImGui::SliderFloat("Pyramid Angular Velocity",
-                       &state->params.pyramidAngularVelocity,
-                       -30.f, 30.f);
-    ImGui::SliderFloat("Pyramid Epoxy Permittivity",
-                       &state->params.epoxyPermittivity,
-                       -5.f, 20.f);
-    ImGui::PopItemWidth();
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-    ImGui::Checkbox("Don't Accumulate", &state->options.disableAccumulation);
+        ImGui::PushItemWidth(0.15f * panelWidth);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
+        ImGuiHelper::SlidersVec3(
+                "Camera Origin",
+                &state->params.camX, -1.f, +1.f,
+                &state->params.camY, -1.f, +1.f,
+                &state->params.camZ, -5.f, -1.f
+        );
+        ImGui::PopStyleVar();
+        ImGui::PopItemWidth();
+
+        ImGui::SliderFloat("Camera FOV",
+                           &state->params.camFov,
+                           0.1f, 2.1f);
+        ImGui::SliderFloat("Camera Tilt",
+                           &state->params.camTilt,
+                           -60.f, 60.f);
+
+    }
+
+    if (ImGui::CollapsingHeader("Background Scenery")) {
+
+        ImGui::SliderFloat("Fog Grading",
+                           &state->params.fogGrading,
+                           0.1f, 5.f);
+        ImGui::SliderFloat("Background Spin",
+                           &state->params.backgroundSpin,
+                           0.f, 100.f);
+        ImGui::SliderFloat("Synthwave Grid Thickness",
+                           &state->params.floorLineWidth,
+                           0.001f, 1.f);
+        ImGui::SliderFloat("Synthwave Grid Exponent",
+                           &state->params.floorExponent,
+                           0.001f, 100.f);
+        ImGui::SliderFloat("Synthwave Grid Glow",
+                           &state->params.floorGrading,
+                           0.001f, 20.f);
+
+    }
+
+    if (ImGui::CollapsingHeader("Pyramid (Trophy)", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        ImGui::PushItemWidth(0.15f * panelWidth);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
+        ImGuiHelper::SlidersVec3(
+                "Pyramid Position",
+                &state->params.pyramidX, -1.f, +1.f,
+                &state->params.pyramidY, -1.f, +1.f,
+                &state->params.pyramidZ, -1.f, +1.f
+        );
+        ImGui::PopStyleVar();
+        ImGui::PopItemWidth();
+
+        ImGui::SliderFloat("Pyramid Scale",
+                           &state->params.pyramidScale,
+                           1e-3f, 2.f);
+        ImGui::SliderFloat("Pyramid Height",
+                           &state->params.pyramidHeight,
+                           0.01f, 2.f);
+        ImGui::SliderFloat("Pyramid Rotation Angle",
+                           &state->params.pyramidAngle,
+                           -180.f, 180.f);
+        ImGui::SliderFloat("Pyramid Angular Velocity",
+                           &state->params.pyramidAngularVelocity,
+                           -210.f, 210.f);
+        ImGui::SliderFloat("Pyramid Epoxy Permittivity",
+                           &state->params.epoxyPermittivity,
+                           0.f, 200.f);
+
+        ImGui::SliderFloat("LED size",
+                           &state->params.ledSize,
+                           1.e-3, 1.e-1);
+
+    }
+
+    if (ImGui::CollapsingHeader("Rendering", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        ImGui::SliderFloat("Previous Image Blend Factor",
+                           &state->params.blendPreviousMixing,
+                           0.f, 1.f);
+        ImGui::Checkbox("Accumulate Forever (ignores Blend Factor)",
+                        &state->options.accumulateForever);
+        ImGui::Checkbox("No Stochastic Variation (indeed bit nonsense)",
+                        &state->options.noStochasticVariation);
+
+    }
+
+    ImGui::PopItemWidth();
 
     if (!reloaded.second.empty()) {
         ImGui::Spacing();
