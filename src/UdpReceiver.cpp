@@ -19,36 +19,4 @@ UdpReceiver::UdpReceiver(int port)
             port
         ));
     }
-
-    // Thread: brauchen wir evtl gar nicht.
-//
-//    thread = std::thread([this] {
-//        run();
-//    });
-}
-
-UdpReceiver::~UdpReceiver() {
-    alive = false;
-    thread.join();
-}
-
-void UdpReceiver::run() {
-    // to be run in its own thread
-    while (alive) {
-        auto message = socket.receive(max_message_size);
-        if (!message.has_value()) {
-            continue;
-        }
-        std::lock_guard<std::mutex> lock(queueMutex);
-        messageQueue.push(message.value());
-        queueCondition.notify_one();
-    }
-}
-
-bool UdpReceiver::lookForMessage(MinimalSocket::ReceiveStringResult& message) {
-    std::lock_guard<std::mutex> lock(queueMutex);
-    if (messageQueue.empty()) {
-        return false;
-    }
-    message = std::move(messageQueue.front());
 }

@@ -25,20 +25,9 @@ private:
     // <-- UDP message size as limited by WLED:
     // https://kno.wled.ge/interfaces/udp-realtime/
 
-    // seems we don't need all the thread shit on our own,
-    // MinimalSocket does all the hassle.
-
-    std::thread thread;
-    std::atomic<bool> alive = true;
-    std::queue<MinimalSocket::ReceiveStringResult> messageQueue;
-    std::mutex queueMutex;
-    std::condition_variable queueCondition;
-
-    void run();
-
 public:
     explicit UdpReceiver(int port);
-    ~UdpReceiver();
+    ~UdpReceiver() = default;
 
     std::optional<Message> listen() {
         auto package = socket.receive(max_message_size);
@@ -50,8 +39,6 @@ public:
             .source = to_string(package.value().sender)
         };
     }
-
-    bool lookForMessage(MinimalSocket::ReceiveStringResult& message);
 
     static std::vector<int> decodeValues(MinimalSocket::ReceiveStringResult message) {
         std::vector<int> values;
