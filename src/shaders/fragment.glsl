@@ -33,6 +33,7 @@ layout(std140) uniform StateBuffer {
     float pyramidX, pyramidY, pyramidZ,
           pyramidScale, pyramidHeight,
           pyramidAngle, pyramidAngularVelocity;
+    float epoxyPermittivity;
 
     int options;
 };
@@ -127,6 +128,29 @@ vec3 advance(Ray ray, float depth) {
     return ray.origin + depth * ray.dir;
 }
 
+//// pseudorandomosities ////
+
+float globalSeed = 0.;
+
+uint base_hash(uvec2 p) {
+    p = 1103515245U*((p >> 1U)^(p.yx));
+    uint h32 = 1103515245U*((p.x)^(p.y>>3U));
+    return h32^(h32 >> 16);
+}
+
+float hash1(inout float seed) {
+    uint n = base_hash(floatBitsToUint(vec2(seed+=.1,seed+=.1)));
+    return float(n)*(1.0/float(0xffffffffU));
+}
+
+vec2 hash2(inout float seed) {
+    uint n = base_hash(floatBitsToUint(vec2(seed+=.1,seed+=.1)));
+    uvec2 rz = uvec2(n, n*48271U);
+    return vec2(rz.xy & uvec2(0x7fffffffU))/float(0x7fffffff);
+}
+
+////
+
 vec3 floorColor = vec3(0., 0.73 - 0.2 * cos(iTime), 0.94 - 0.05 * sin(0.4 * iTime));
 
 Marched sdFloor(vec3 p, float level) {
@@ -138,12 +162,14 @@ float sdSphere(vec3 p, vec3 center, float radius) {
     return length(p - center) - radius;
 }
 
+mat3 pyramidRotation = rotateY(pyramidAngle + pyramidAngularVelocity * iTime);
+
 // thanks iq https://iquilezles.org/articles/distfunctions/
 float sdPyramid( vec3 p )
 {
     float h = pyramidHeight;
     p -= vec3(pyramidX, pyramidY, pyramidZ);
-    p *= rotateY(pyramidAngle + pyramidAngularVelocity * iTime) / pyramidScale;
+    p *= pyramidRotation / pyramidScale;
 
     float m2 = h*h + 0.25;
 
@@ -179,10 +205,15 @@ Marched sdScene(vec3 p) {
     Marched hit = sdFloor(p, -4.);
     float sd;
 
-    MARCH_SDF(sdPyramid(p), PYRAMID_MATERIAL)
+    sd = sdPyramid(p);
+    if (sd < hit.sd) {
+        hit.sd = sd;
+        hit.material = PYRAMID_MATERIAL;
+    }
 
     for (int i = 0; i < nLeds; i++) {
-        sd = sdSphere(p, ledPosition[i].xyz, ledSize);
+        vec3 center = pyramidRotation * ledPosition[i].xyz;
+        sd = sdSphere(p, center, ledSize);
         if (sd < hit.sd) {
             hit.sd = sd;
             hit.ledIndex = i;
@@ -217,6 +248,7 @@ Marched marchScene(Ray ray) {
     }
 
     hit.sd = depth;
+    hit.normal = calcNormal(advance(ray, hit.sd));
     return hit;
 }
 
@@ -224,34 +256,53 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+float schlick(float cosine, float ior) {
+    // TODO: same as fresnelSchlick? check later.
+    float r0 = (1.-ior)/(1.+ior);
+    r0 = r0*r0;
+    return r0 + (1.-r0)*pow((1.-cosine),5.);
+}
+
+bool modifiedRefract(const in vec3 p, const in vec3 normal, const in float ni_over_nt, out vec3 refracted) {
+    float dt = dot(p, normal);
+    float discriminant = 1. - ni_over_nt*ni_over_nt*(1.-dt*dt);
+    if (discriminant > 0.) {
+        refracted = ni_over_nt*(p - normal*dt) - normal*sqrt(discriminant);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out Ray scattered) {
     // we only need the dielectric part from RIOW 1.09
-    vec3 outward_normal, refracted;
-    vec3 reflected = reflect(ray.dir, rec.normal);
-    float ni_over_nt, reflect_prob, cosine;
+    vec3 normal, refracted;
+    vec3 reflected = reflect(ray.dir, hit.normal);
+    float ni_over_nt, cosine;
 
     attenuation = vec3(1);
-    if (dot(ray.dir, rec.normal) > 0.) {
-        outward_normal = -rec.normal;
-        ni_over_nt = rec.mat.v;
-        cosine = dot(ray.dir, rec.normal);
-        cosine = sqrt(1. - rec.mat.v*rec.mat.v*(1.-cosine*cosine));
+    if (dot(ray.dir, hit.normal) > 0.) {
+        normal = -hit.normal;
+        ni_over_nt = epoxyPermittivity;
+        cosine = dot(ray.dir, hit.normal);
+        cosine = sqrt(
+            1. - epoxyPermittivity*epoxyPermittivity*(1.-cosine*cosine)
+        );
     } else {
-        outward_normal = rec.normal;
-        ni_over_nt = 1. / rec.mat.v;
-        cosine = -dot(ray.dir, rec.normal);
+        normal = hit.normal;
+        ni_over_nt = 1. / epoxyPermittivity;
+        cosine = -dot(ray.dir, hit.normal);
     }
 
-    if (modified_refract(ray.dir, outward_normal, ni_over_nt, refracted)) {
-        reflect_prob = schlick(cosine, rec.mat.v);
-    } else {
-        reflect_prob = 1.;
+    float reflectProbability = 1.;
+    if (modifiedRefract(ray.dir, normal, ni_over_nt, refracted)) {
+        reflectProbability = schlick(cosine, epoxyPermittivity);
     }
-
-    if (hash1(g_seed) < reflect_prob) {
-        scattered = ray(rec.p, reflected);
+    vec3 currentPosition = advance(ray, hit.sd);
+    if (hash1(globalSeed) < reflectProbability) {
+        scattered = Ray(currentPosition, reflected);
     } else {
-        scattered = ray(rec.p, refracted);
+        scattered = Ray(currentPosition, refracted);
     }
     return true;
 }
@@ -285,14 +336,15 @@ Marched traceScene(Ray ray) {
 
     for (int r=0; r < MAX_RECURSION; r++) {
         hit = marchScene(ray);
-        if (d >= MAX_DIST) {
+        if (hit.sd >= MAX_DIST) {
             hit.material = MISS;
         }
         if (hit.material != PYRAMID_MATERIAL) {
-            hit.color = nonPyramidColor(hit, advance(ray, d));
+            hit.color = nonPyramidColor(hit, advance(ray, hit.sd));
             return hit;
         }
         // still here? -> hit the pyramid :) is gonne be fun.
+        vec3 attenuation;
         if (pyramidScatter(ray, hit, attenuation, scatRay)) {
             col *= attenuation;
             ray = scatRay;
@@ -306,6 +358,7 @@ Marched traceScene(Ray ray) {
     return hit;
 }
 
+/*
 Marched oldMarcher(vec3 ro, vec3 rd) {
     float d = hit.sd;
     if (d >= MAX_DIST) {
@@ -335,12 +388,15 @@ Marched oldMarcher(vec3 ro, vec3 rd) {
     hit.color = col;
     return hit;
 }
+*/
 
 void main() {
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;
-    // TODO:
-    // float seed = float(base_hash(floatBitsToUint(frag_coord)))/float(0xffffffffU)+iTime;
-    // uv += hash2(seed) / iResolution;
+
+    uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
+    globalSeed = float(base_hash(bits))/float(0xffffffffU)+iTime;
+    uv += hash2(globalSeed) / iResolution;
+
     fragColor = c.yyyx;
     vec3 col = fragColor.rgb;
 
@@ -363,7 +419,8 @@ void main() {
     rd *= rotateX(camTilt * rad);
     Ray ray = Ray(ro, rd);
     Marched hit = traceScene(ray);
-    col = hit.color;
+
+    col = mix(fragColor.rgb, hit.color, exp(-fogScaling * pow(hit.sd, fogGrading)));
 
     bool hovered = distance(iMouse.xy, gl_FragCoord.xy) < 1.;
     bool clicked = iMouse.z > 0 && hovered;

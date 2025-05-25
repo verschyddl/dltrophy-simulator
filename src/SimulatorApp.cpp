@@ -249,7 +249,7 @@ void SimulatorApp::buildControlPanel() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    float panelMargin = 0.02 * area.width;
+    float panelMargin = 0.013 * area.width;
     float panelWidth = config.relativeRemainingWidth() * area.width - panelMargin;
     ImGui::SetNextWindowPos(
             ImVec2(area.width - panelWidth - panelMargin, panelMargin),
@@ -341,6 +341,9 @@ void SimulatorApp::buildControlPanel() {
     ImGui::SliderFloat("Pyramid Angular Velocity",
                        &state->params.pyramidAngularVelocity,
                        -5.f, 5.f);
+    ImGui::SliderFloat("Pyramid Epoxy Permittivity",
+                       &state->params.epoxyPermittivity,
+                       0.f, 50.f);
 
     if (!reloaded.second.empty()) {
         ImGui::Spacing();

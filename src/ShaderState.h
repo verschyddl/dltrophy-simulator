@@ -63,6 +63,7 @@ struct Parameters {
     float fogScaling, fogGrading;
     float floorSpacingX, floorSpacingZ, floorLineWidth, floorExponent, floorGrading;
     float pyramidX, pyramidY, pyramidZ, pyramidScale, pyramidHeight, pyramidAngle, pyramidAngularVelocity;
+    float epoxyPermittivity;
 };
 
 struct ShaderState {
@@ -91,10 +92,11 @@ struct ShaderState {
         .pyramidX = 0.,
         .pyramidY = -.5,
         .pyramidZ = 0.,
-        .pyramidScale = 1.4,
-        .pyramidHeight = 1.3,
+        .pyramidScale = 1.77,
+        .pyramidHeight = 0.85,
         .pyramidAngle = 0.,
         .pyramidAngularVelocity = 0.2,
+        .epoxyPermittivity = 1.1,
     };
     ShaderOptions options {
         .showGrid = false,
