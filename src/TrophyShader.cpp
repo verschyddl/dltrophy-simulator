@@ -217,12 +217,12 @@ void TrophyShader::initFeedbackFramebuffer(const Rect& rect) {
     // Framebuffer must include the near-origin part of the shader view offset
     glTexImage2D(GL_TEXTURE_2D,
                  0,
-                 GL_RGBA16F, // GL_RGBA8,
+                 GL_RGBA32F,
                  rect.width + rect.x,
                  rect.height + rect.y,
                  0,
                  GL_RGBA,
-                 GL_FLOAT, // GL_UNSIGNED_BYTE,
+                 GL_FLOAT,
                  nullptr);
 
     glGenFramebuffers(1, &framebufferObject);
@@ -299,12 +299,12 @@ void TrophyShader::use() {
         throw std::runtime_error("Cannot use program, because linking failed.");
     }
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    // glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(program);
 
     iRect.set();
 
-    // not required again (in our case.)
+    // not required again: (in our case...)
     // glBindVertexArray(vertexArrayObject);
 }
 

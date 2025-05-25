@@ -198,7 +198,7 @@ const float MIN_DIST = 1.e-3;
 const int MAX_STEPS = 80;
 // Note: The Epoxy Pyramid needs some Ray Tracing:
 const float PYRAMID_STEP = 0.1;
-const int MAX_RECURSION = 10;
+const int MAX_RECURSION = 20;
 
 #define MARCH_SDF(SDF, MAT) sd = SDF; if (sd < hit.sd) { hit.sd = sd; hit.material = MAT; }
 
@@ -253,12 +253,11 @@ Marched marchScene(Ray ray) {
     return hit;
 }
 
-vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
+//vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+//    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+//}
 
 float schlick(float cosine, float ior) {
-    // TODO: same as fresnelSchlick? check later.
     float r0 = (1.-ior)/(1.+ior);
     r0 = r0*r0;
     return r0 + (1.-r0)*pow((1.-cosine),5.);
@@ -275,13 +274,14 @@ bool modifiedRefract(const in vec3 p, const in vec3 normal, const in float ni_ov
     }
 }
 
-bool pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out Ray scattered) {
-    // we only need the dielectric part from RIOW 1.09
+void pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out Ray scattered) {
+    // we only need the dielectric part from RIOW
+    // and we can get rid of the boolean, whether scattering happened. it did.
     vec3 normal, refracted;
     vec3 reflected = reflect(ray.dir, hit.normal);
     float ni_over_nt, cosine;
 
-    attenuation = vec3(1);
+    attenuation = c.xxx; // könnte hier einfärben
     if (dot(ray.dir, hit.normal) > 0.) {
         normal = -hit.normal;
         ni_over_nt = epoxyPermittivity;
@@ -300,12 +300,10 @@ bool pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out 
         reflectProbability = schlick(cosine, epoxyPermittivity);
     }
     vec3 currentPosition = advance(ray, hit.sd);
-    if (hash1(globalSeed) < reflectProbability) {
-        scattered = Ray(currentPosition, reflected);
-    } else {
-        scattered = Ray(currentPosition, refracted);
-    }
-    return true;
+    scattered = Ray(currentPosition,
+        hash1(globalSeed) < reflectProbability
+            ? reflected : refracted
+    );
 }
 
 vec3 nonPyramidColor(Marched hit, vec3 ray) {
@@ -315,11 +313,11 @@ vec3 nonPyramidColor(Marched hit, vec3 ray) {
         case FLOOR_MATERIAL:
             // Synthwave Grid ftw.
             vec2 f = vec2(
-            fract(ray.x / floorSpacingX),
-            fract(ray.z / floorSpacingZ)
+                fract(ray.x / floorSpacingX),
+                fract(ray.z / floorSpacingZ)
             );
             f = .5 - abs(.5 - f);
-            f = max(vec2(0), 1. - f + .5*floorLineWidth);
+            f = max(c.yy, 1. - f + .5 * floorLineWidth);
             f = pow(f, vec2(floorExponent));
             float g = pow(f.x+f.y, 1./floorGrading);
             g = clamp(g, 0., 1.);
@@ -346,14 +344,9 @@ Marched traceScene(Ray ray) {
         }
         // still here? -> hit the pyramid :) is gonne be fun.
         vec3 attenuation;
-        if (pyramidScatter(ray, hit, attenuation, scatRay)) {
-            col *= attenuation;
-            ray = scatRay;
-        } else {
-            // is that right to discard?? choose alarming color (c.xxw = pissgelb)
-            hit.color = c.yyy; // c.xxw;
-            return hit;
-        }
+        pyramidScatter(ray, hit, attenuation, scatRay);
+        col *= attenuation;
+        ray = scatRay;
     }
     hit.material = MISS;
     hit.color = c.yyy;
@@ -436,7 +429,9 @@ void main() {
     vec4 previousImage = texture(iPreviousImage, st);
 
     if (iPass == 1) {
-        fragColor = vec4(previousImage.rgb / previousImage.a, 1.);
+        col = previousImage.rgb / previousImage.a;
+        // TODO: could add post processing like simple color grading blablabluuu
+        fragColor = vec4(col, 1.);
         return;
     }
 
