@@ -42,9 +42,9 @@ layout(std140) uniform StateBuffer {
 #define hasOption(index) (options & (1 << index)) != 0
 
 bool showGrid = hasOption(0);
-bool debug1 = hasOption(1);
-bool debug2 = hasOption(2);
-bool debug3 = hasOption(3);
+bool disableAccumulation = hasOption(1);
+bool debug1 = hasOption(2);
+bool debug2 = hasOption(3);
 
 vec3 to_vec(RGB rgb) {
     return vec3(rgb.r, rgb.g, rgb.b) / 255.;
@@ -391,7 +391,9 @@ void main() {
 
     uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
     globalSeed = float(base_hash(bits))/float(0xffffffffU)+iTime;
-    uv += hash2(globalSeed) / iResolution;
+    if (!disableAccumulation) {
+        uv += hash2(globalSeed) / iResolution;
+    }
 
     fragColor = c.yyyx;
     vec3 col = fragColor.rgb;
@@ -426,18 +428,20 @@ void main() {
         col += 0.2 * grid;
     }
 
+    fragColor = vec4(clampVec3(col), 1.);
+
+    if (disableAccumulation) {
+        return;
+    }
+
     vec4 previousImage = texture(iPreviousImage, st);
 
     if (iPass == 1) {
         col = previousImage.rgb / previousImage.a;
         // TODO: could add post processing like simple color grading blablabluuu
         fragColor = vec4(col, 1.);
-        return;
     }
-
-    fragColor = vec4(clampVec3(col), 1.);
-
-    if (iFrame > 0) {
+    else if (iFrame > 0) {
         fragColor += previousImage;
     }
 }

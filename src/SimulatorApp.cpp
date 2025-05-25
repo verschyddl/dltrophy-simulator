@@ -315,19 +315,23 @@ void SimulatorApp::buildControlPanel() {
         trophy->printDebug();
     }
 
-    stop = 0.22 * panelWidth;
+    stop = 0.2 * panelWidth;
     ImGui::PushItemWidth(stop);
-    ImGui::SliderFloat("##X",
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 0));
+    ImGui::SliderFloat("##Camera X",
                        &state->params.camX,
                        -1.f, +1.f);
     ImGui::SameLine();
-    ImGui::SliderFloat("##Y",
+    ImGui::SliderFloat("##Camera Y",
                        &state->params.camY,
                        -1.f, +1.f);
     ImGui::SameLine();
-    ImGui::SliderFloat("##Z Camera",
+    ImGui::SliderFloat("##Camera Z",
                        &state->params.camZ,
                        -5.f, -1.f);
+    ImGui::SameLine();
+    ImGui::Text("Camera Origin");
+    ImGui::PopStyleVar();
     ImGui::PopItemWidth();
 
     ImGui::PushItemWidth(2. * stop);

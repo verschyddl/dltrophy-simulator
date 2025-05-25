@@ -45,12 +45,12 @@ public:
 };
 
 struct ShaderOptions {
-    bool showGrid = false;
+    bool showGrid;
+    bool disableAccumulation;
 
     // need minimum alignment (GLint = 4 bytes), therefore:
     bool debug1 = false;
     bool debug2 = false;
-    bool debug3 = false;
 };
 
 struct Parameters {
@@ -100,7 +100,7 @@ struct ShaderState {
     };
     ShaderOptions options {
         .showGrid = false,
-        .debug3 = true, // just to check it works
+        .disableAccumulation = true,
     };
 
     explicit ShaderState(Trophy* trophy):

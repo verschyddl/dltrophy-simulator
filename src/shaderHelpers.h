@@ -89,7 +89,7 @@ struct ProgramMeta {
 template <typename T>
 struct Uniform {
 private:
-    GLint location = 0;
+    GLint location = -1;
     std::string name;
     bool triedLoadLocation = false;
     bool hasLocationWarned = false;
@@ -107,7 +107,7 @@ public:
     }
 
     void set() {
-        if (location <= 0) {
+        if (location < 0) {
             if (!triedLoadLocation && !hasLocationWarned) {
                 std::cerr << "Uniform was never initialized: " << name << std::endl;
                 hasLocationWarned = true;
@@ -133,25 +133,58 @@ public:
         value = to;
         set();
     }
+
+    void printDebug() const {
+        std::string printValue;
+        if constexpr (std::is_same_v<T, glm::vec4>) {
+            printValue = std::format("vec4({}, {}, {}, {})", value.x, value.y, value.z, value.w);
+        } else {
+            // add other cases when they actually occur
+            printValue = std::format("{}", value);
+        }
+        std::cout << "[Debug Uniform] "
+                  << std::format("uniform (location = {}) {} = {};", location, name, printValue)
+                  << std::endl;
+    }
 };
 
-// TODO: this might be a useful struct....
-//struct ShaderPass {
-//    GLuint framebufferObject;
-//    GLuint textureId;
-//    GLenum framebufferStatus;
-//    ...
-//}
-const std::map<GLenum, std::string> framebufferStatusMessages = {
-        {GL_FRAMEBUFFER_COMPLETE, "Framebuffer complete"},
-        {GL_FRAMEBUFFER_UNDEFINED, "Framebuffer undefined"},
-        {GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT, "Framebuffer incomplete attachment"},
-        {GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT, "Framebuffer incomplete missing attachment"},
-        {GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER, "Framebuffer incomplete draw buffer"},
-        {GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER, "Framebuffer incomplete read buffer"},
-        {GL_FRAMEBUFFER_UNSUPPORTED, "Framebuffer unsupported"},
-        {GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE, "Framebuffer incomplete multisample"},
-        {GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS, "Framebuffer incomplete layer targets"}
+struct FramebufferPingPong {
+    static const int N = 2;
+    std::array<GLuint, N> object{};
+    std::array<GLuint, N> texture{};
+    std::array<GLenum, N> status{};
+    int pingCursor = 0;
+
+    FramebufferPingPong() = default;
+
+    std::pair<GLuint, GLuint> getOrderAndAdvance() {
+        auto pongCursor = (pingCursor + 1) % N;
+        std::pair<GLuint, GLuint> result{pingCursor, pongCursor};
+        pingCursor = pongCursor;
+        return result;
+    }
+
+    void assertStatus(int i) const {
+        if (status[i] != GL_FRAMEBUFFER_COMPLETE) {
+            throw std::runtime_error(std::format(
+                    "Error in Framebuffer {}: {} ({})",
+                    i, statusMessages.at(status[i]), status[i]
+            ));
+        }
+    }
+
+    static inline const std::map<GLenum, std::string> statusMessages = {
+            {GL_FRAMEBUFFER_COMPLETE, "Framebuffer complete"},
+            {GL_FRAMEBUFFER_UNDEFINED, "Framebuffer undefined"},
+            {GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT, "Framebuffer incomplete attachment"},
+            {GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT, "Framebuffer incomplete missing attachment"},
+            {GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER, "Framebuffer incomplete draw buffer"},
+            {GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER, "Framebuffer incomplete read buffer"},
+            {GL_FRAMEBUFFER_UNSUPPORTED, "Framebuffer unsupported"},
+            {GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE, "Framebuffer incomplete multisample"},
+            {GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS, "Framebuffer incomplete layer targets"}
+    };
+
 };
 
 #endif //DLTROPHY_SIMULATOR_SHADERHELPERS_H

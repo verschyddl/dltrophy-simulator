@@ -37,6 +37,14 @@ void TrophyShader::initializeProgram(const Config& config) {
     iPreviousImage.loadLocation(program);
     iMouse.loadLocation(program);
 
+    iRect.printDebug();
+    iTime.printDebug();
+    iFPS.printDebug();
+    iFrame.printDebug();
+    iPass.printDebug();
+    iPreviousImage.printDebug();
+    iMouse.printDebug();
+
     initUniformBuffers();
     
     onRectChange(config.windowSize, config);
@@ -50,8 +58,8 @@ void TrophyShader::teardown() {
     glDeleteBuffers(1, &vertexBufferObject);
     glDeleteBuffers(1, &stateBufferId);
     glDeleteBuffers(1, &definitionBufferId);
-    glDeleteFramebuffers(1, &framebufferObject);
-    glDeleteTextures(1, &feedbackTexture);
+    glDeleteFramebuffers(framebuffers.object.size(), &framebuffers.object[0]);
+    glDeleteTextures(framebuffers.texture.size(), &framebuffers.texture[0]);
 }
 
 void TrophyShader::onRectChange(Size resolution, const Config& config) {
@@ -59,7 +67,7 @@ void TrophyShader::onRectChange(Size resolution, const Config& config) {
     iRect.value = glm::vec4(rect.x, rect.y, rect.width, rect.height);
     glViewport(rect.x, rect.y, rect.width, rect.height);
     initVertices();
-    initFeedbackFramebuffer(rect);
+    initFramebuffers(rect);
 }
 
 void TrophyShader::reload(const Config& config) {
@@ -202,48 +210,43 @@ void TrophyShader::initVertices() {
     glEnableVertexAttribArray(positionAttributeLocation);
 }
 
-void TrophyShader::initFeedbackFramebuffer(const Rect& rect) {
-    if (framebufferObject > 0) {
-        glDeleteFramebuffers(1, &framebufferObject);
+void TrophyShader::initFramebuffers(const Rect& rect) {
+    const int n = framebuffers.object.size();
+    glDeleteFramebuffers(n, &framebuffers.object[0]);
+    glDeleteTextures(n, &framebuffers.texture[0]);
+
+    glGenTextures(n, &framebuffers.texture[0]);
+    glGenFramebuffers(n, &framebuffers.object[0]);
+
+    for (int i = 0; i < n; i++) {
+        glBindTexture(GL_TEXTURE_2D, framebuffers.texture[i]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // the resolution must include the origin shift, I suppose to have found out
+        glTexImage2D(GL_TEXTURE_2D,
+                     0,
+                     GL_RGBA16F,
+                     rect.width + rect.x,
+                     rect.height + rect.y,
+                     0,
+                     GL_RGBA,
+                     GL_FLOAT,
+                     nullptr);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffers.object[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                               GL_COLOR_ATTACHMENT0, // is right to keep at 0... right?
+                               GL_TEXTURE_2D,
+                               framebuffers.texture[i],
+                               0);
+        framebuffers.status[i] = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        framebuffers.assertStatus(i);
+
+//        glViewport(rect.x, rect.y, rect.width, rect.height);
+//        glClear(GL_COLOR_BUFFER_BIT);
     }
-    if (feedbackTexture > 0) {
-        glDeleteTextures(1, &feedbackTexture);
-    }
-
-    glGenTextures(1, &feedbackTexture);
-    glBindTexture(GL_TEXTURE_2D, feedbackTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // Framebuffer must include the near-origin part of the shader view offset
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_RGBA32F,
-                 rect.width + rect.x,
-                 rect.height + rect.y,
-                 0,
-                 GL_RGBA,
-                 GL_FLOAT,
-                 nullptr);
-
-    glGenFramebuffers(1, &framebufferObject);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebufferObject);
-    glFramebufferTexture2D(GL_FRAMEBUFFER,
-                           GL_COLOR_ATTACHMENT0,
-                           GL_TEXTURE_2D,
-                           feedbackTexture,
-                           0);
-
-    GLuint status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE) {
-        throw std::runtime_error(std::format(
-                "Framebuffer Creation failed: {} ({})",
-                framebufferStatusMessages.at(status),
-                status
-        ));
-    }
-
-    glViewport(rect.x, rect.y, rect.width, rect.height);
-    glClear(GL_COLOR_BUFFER_BIT);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -334,15 +337,18 @@ void TrophyShader::render() {
     );
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+    auto order = framebuffers.getOrderAndAdvance();
+
+    glActiveTexture(GL_TEXTURE0);
+    iPreviousImage.set(0);
+
     iPass.set(0);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebufferObject);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffers.object[order.first]);
+    glBindTexture(GL_TEXTURE_2D, framebuffers.texture[order.second]);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     iPass.set(1);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    iPreviousImage.set(0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, feedbackTexture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 

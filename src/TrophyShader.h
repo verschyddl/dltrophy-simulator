@@ -17,6 +17,8 @@
 #include "Config.h"
 #include "ShaderState.h"
 
+using AnyUniform = std::variant<Uniform<float>, Uniform<int>, Uniform<glm::vec4>>;
+
 class TrophyShader {
 
 private:
@@ -26,36 +28,25 @@ private:
     ProgramMeta createProgram();
     void initializeProgram(const Config& config);
     void teardown();
+    std::optional<std::time_t> lastReload;
+    bool reloadFailed = false;
 
     GLuint vertexArrayObject = 0;
     GLuint vertexBufferObject = 0;
     void initVertices();
     static std::array<float, 18> createQuadVertices();
 
-    GLuint framebufferObject = 0;
-    GLuint feedbackTexture = 0;
-    void initFeedbackFramebuffer(const Rect& rect);
-
     ShaderState *state;
     GLuint stateBufferId = 0;
     GLuint definitionBufferId = 0;
     void initUniformBuffers();
 
-    std::optional<std::time_t> lastReload;
-    bool reloadFailed = false;
+    FramebufferPingPong framebuffers;
+    void initFramebuffers(const Rect& rect);
 
 public:
     TrophyShader(const Config& config, ShaderState *state);
     ~TrophyShader();
-
-    // TODO: this can surely be made more elegant, but pls. brain. quiet now.
-    Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
-    Uniform<float> iTime = Uniform<float>("iTime");
-    Uniform<float> iFPS = Uniform<float>("iFPS");
-    Uniform<int> iFrame = Uniform<int>("iFrame");
-    Uniform<int> iPass = Uniform<int>("iPass");
-    Uniform<glm::vec4> iMouse = Uniform<glm::vec4>("iMouse");
-    Uniform<int> iPreviousImage = Uniform<int>("iPreviousImage");
 
     void use();
     void render();
@@ -68,6 +59,15 @@ public:
     [[nodiscard]]
     std::string collectErrorLogs(std::optional<ProgramMeta> program = std::nullopt) const;
     void assertSuccess(const std::function<void(const std::string&)>& callback) const;
+
+    // TODO: this can surely be made more elegant, but pls. brain. quiet now.
+    Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
+    Uniform<float> iTime = Uniform<float>("iTime");
+    Uniform<float> iFPS = Uniform<float>("iFPS");
+    Uniform<int> iFrame = Uniform<int>("iFrame");
+    Uniform<int> iPass = Uniform<int>("iPass");
+    Uniform<glm::vec4> iMouse = Uniform<glm::vec4>("iMouse");
+    Uniform<int> iPreviousImage = Uniform<int>("iPreviousImage");
 
     bool debugFlag = false;
 };
