@@ -48,6 +48,7 @@ struct ShaderMeta {
     }
 
     void compile() {
+        error = "";
         id = glCreateShader(type);
         const char* source_str = source.c_str();
         glShaderSource(id, 1, &source_str, nullptr);
@@ -89,19 +90,29 @@ struct Uniform {
 private:
     GLint location = 0;
     std::string name;
+    bool triedLoadLocation = false;
+    bool hasLocationWarned = false;
 
 public:
     T value;
 
-    explicit Uniform<T>(const std::string& name)
-            : name(name)
+    explicit Uniform<T>(std::string  name)
+            : name(std::move(name))
             {}
 
     void loadLocation(GLuint program) {
         location = glGetUniformLocation(program, name.c_str());
+        triedLoadLocation = true;
     }
 
     void set() {
+        if (location <= 0) {
+            if (!triedLoadLocation && !hasLocationWarned) {
+                std::cerr << "Uniform was never initialized: " << name << std::endl;
+                hasLocationWarned = true;
+            }
+            return;
+        }
         if constexpr (std::is_same_v<T, float>) {
             glUniform1f(location, value);
         } else if constexpr (std::is_same_v<T, glm::vec2>) {

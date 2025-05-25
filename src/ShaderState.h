@@ -61,7 +61,8 @@ struct Parameters {
     float camX, camY, camZ, camFov, camTilt;
     float diffuseMix, specularMix, specularGrading;
     float fogScaling, fogGrading;
-    float floorSpacingX, floorSpacingY, floorLineWidth;
+    float floorSpacingX, floorSpacingZ, floorLineWidth, floorExponent, floorGrading;
+    float pyramidX, pyramidY, pyramidZ, pyramidScale, pyramidHeight, pyramidAngle, pyramidAngularVelocity;
 };
 
 struct ShaderState {
@@ -81,10 +82,19 @@ struct ShaderState {
         .specularMix = 0.40,
         .specularGrading = 2.1,
         .fogScaling = 0.0001,
-        .fogGrading = 3.,
-        .floorSpacingX = 5.21,
-        .floorSpacingY = 5.21,
-        .floorLineWidth = .3,
+        .fogGrading = 1.9,
+        .floorSpacingX = 2.21,
+        .floorSpacingZ = 5.21,
+        .floorLineWidth = .05,
+        .floorExponent = 30.,
+        .floorGrading = 0.5,
+        .pyramidX = 0.,
+        .pyramidY = -.5,
+        .pyramidZ = 0.,
+        .pyramidScale = 1.4,
+        .pyramidHeight = 1.3,
+        .pyramidAngle = 0.,
+        .pyramidAngularVelocity = 0.2,
     };
     ShaderOptions options {
         .showGrid = false,

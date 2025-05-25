@@ -37,21 +37,31 @@ private:
     GLuint definitionBufferId = 0;
     void initUniformBuffers();
 
+    std::optional<std::time_t> lastReload;
+    bool reloadFailed = false;
+
 public:
     TrophyShader(const Config& config, ShaderState *state);
     ~TrophyShader();
 
+    // TODO: this can surely be made more elegant, but pls. brain. quiet now.
     Uniform<float> iTime = Uniform<float>("iTime");
     Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
+    Uniform<float> iFPS = Uniform<float>("iFPS");
+    Uniform<glm::vec4> iMouse = Uniform<glm::vec4>("iMouse");
 
     void use();
     void render();
-    void assertCompileSuccess(const std::function<void(const std::string&)>& callback) const;
     void onRectChange(Size resolution, const Config& config);
+
     void reload(const Config& config);
     void mightHotReload(const Config& config);
+    const std::pair<std::string, std::string> lastReloadInfo() const;
 
-    std::optional<std::time_t> lastReload;
+    [[nodiscard]]
+    std::string collectErrorLogs(std::optional<ProgramMeta> program = std::nullopt) const;
+    void assertSuccess(const std::function<void(const std::string&)>& callback) const;
+
     bool debugFlag = false;
 };
 

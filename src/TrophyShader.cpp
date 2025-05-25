@@ -29,8 +29,10 @@ TrophyShader::~TrophyShader() {
 
 void TrophyShader::initializeProgram(const Config& config) {
     glUseProgram(program);
-    iTime.loadLocation(program);
     iRect.loadLocation(program);
+    iTime.loadLocation(program);
+    iFPS.loadLocation(program);
+    iMouse.loadLocation(program);
 
     initUniformBuffers();
     
@@ -58,25 +60,21 @@ void TrophyShader::reload(const Config& config) {
     vertex.read();
     fragment.read();
 
+    lastReload = std::chrono::system_clock::to_time_t(
+            std::chrono::system_clock::now()
+    );
+
     auto newProgram = createProgram();
-    if (newProgram.error.empty()) {
-        teardown();
-        program = newProgram;
-        initializeProgram(config);
-        lastReload = std::chrono::system_clock::to_time_t(
-                std::chrono::system_clock::now()
-        );
-    } else {
-        if (!vertex.error.empty()) {
-            std::cerr << "Error in Vertex Shader: " << vertex.filePath << std::endl
-                      << vertex.error << std::endl;
-        }
-        if (!fragment.error.empty()) {
-            std::cerr << "Error in Fragment Shader:" << fragment.filePath << std::endl
-                      << fragment.error << std::endl;
-        }
-        std::cerr << "Could not reload shaders because it's bad, man, it's bad." << std::endl;
+    auto totalError = collectErrorLogs(newProgram);
+    reloadFailed = !totalError.empty();
+    if (reloadFailed) {
+        std::cerr << totalError << std::endl;
+        return;
     }
+
+    teardown();
+    program = newProgram;
+    initializeProgram(config);
 }
 
 void TrophyShader::mightHotReload(const Config &config) {
@@ -85,9 +83,12 @@ void TrophyShader::mightHotReload(const Config &config) {
     }
     auto vertexShaderChanged = vertex.fileHasChanged();
     auto fragmentShaderChanged = fragment.fileHasChanged();
-    if (vertexShaderChanged || fragmentShaderChanged) {
-        reload(config);
+    if (!vertexShaderChanged && !fragmentShaderChanged) {
+        return;
     }
+
+    reload(config);
+    std::cout << "lastReload: " << lastReload.value() << std::endl;
 
     if (vertexShaderChanged) {
         std::cout << "Hot Reload due to Vertex Shader change: "
@@ -120,19 +121,25 @@ ProgramMeta TrophyShader::createProgram() {
     return prog;
 }
 
-void TrophyShader::assertCompileSuccess(const std::function<void(const std::string&)>& callback) const {
-    std::string message;
+std::string TrophyShader::collectErrorLogs(std::optional<ProgramMeta> otherProgram) const {
+    std::string result;
     if (!vertex.error.empty()) {
-        message += "Vertex Shader Error:\n\n" + vertex.error + "\n";
+        result += "Error in Vertex Shader: " + vertex.filePath + "\n" + vertex.error + "\n";
     }
     if (!fragment.error.empty()) {
-        message += "Fragment Shader Error:\n\n" + fragment.error + "\n";
+        result += "Error in Fragment Shader: " + fragment.filePath + "\n" + fragment.error + "\n";
     }
-    if (message.empty() && !program.error.empty()) {
-        message += "Shader Linker Error:\n\n" + program.error + "\n";
+    auto givenProgram = otherProgram.value_or(program);
+    if (!givenProgram.error.empty()) {
+        result += "Shader Linker Error:\n" + givenProgram.error + "\n";
     }
-    if (!message.empty()) {
-        callback(message);
+    return result;
+}
+
+void TrophyShader::assertSuccess(const std::function<void(const std::string &)> &callback) const {
+    const auto errorLog = collectErrorLogs();
+    if (!errorLog.empty()) {
+        callback(errorLog);
     }
 }
 
@@ -272,4 +279,20 @@ void TrophyShader::render() {
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
+const std::pair<std::string, std::string> TrophyShader::lastReloadInfo() const {
+    // first: message (last success time / fail), second: error message (empty string if success)
+    std::pair<std::string, std::string> result{"", ""};
+    if (!lastReload.has_value()) {
+        return result;
+    }
+    if (reloadFailed) {
+        result.first = "! FAILED !";
+        result.second = collectErrorLogs();
+    } else {
+        auto tm = *std::localtime(&lastReload.value());
+        result.first = std::format("-- last: {:02d}:{:02d}:{:02d}", tm.tm_hour, tm.tm_min, tm.tm_sec);
+    }
+    return result;
 }

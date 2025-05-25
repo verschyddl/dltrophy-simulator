@@ -27,13 +27,13 @@ SimulatorApp::SimulatorApp(Config config)
 
     trophy = new Trophy();
     state = new ShaderState(trophy);
-
     shader = new TrophyShader(config, state);
-    shader->assertCompileSuccess(showError);
+    shader->assertSuccess(showError);
 
     receiver = new UdpReceiver(config.udpPort);
 
     initializeKeyMap();
+
 }
 
 SimulatorApp::~SimulatorApp() {
@@ -106,15 +106,21 @@ void SimulatorApp::run() {
     // TODO: replace when we have a better idea for development
     state->randomize();
 
-    startTime = static_cast<float>(glfwGetTime());
+    startTimestamp = static_cast<float>(glfwGetTime());
+    currentTime = 0;
+    currentFrame = 0;
+    currentFps = 0;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         handleResize();
         buildControlPanel();
 
+        handleTime();
+
         shader->use();
-        shader->iTime.set(handleElapsedTime());
+        shader->iTime.set(currentTime);
+        shader->iFPS.set(averageFps);
         shader->render();
 
         ImGui::Render();
@@ -130,9 +136,24 @@ void SimulatorApp::run() {
     config.store(window);
 }
 
-float SimulatorApp::handleElapsedTime() {
-    currentTime = static_cast<float>(glfwGetTime());
-    return currentTime - startTime;
+void SimulatorApp::handleTime() {
+    currentFrame++;
+    previousTime = currentTime;
+    latestTimestamp = static_cast<float>(glfwGetTime());
+    currentTime = latestTimestamp - startTimestamp;
+    currentFps = 1.f / (currentTime - previousTime);
+
+    int f = currentFrame % FPS_SAMPLES;
+    lastFps[f] = currentFps;
+    averageFps = currentFrame < FPS_SAMPLES ? currentFps : calcAverageFps();
+}
+
+float SimulatorApp::calcAverageFps() {
+    float sum = 0.;
+    for (int f = 0; f < FPS_SAMPLES; f++) {
+        sum += lastFps[f];
+    }
+    return sum / static_cast<float>(FPS_SAMPLES);
 }
 
 // there should be many implementations, but this one is enough for now
@@ -244,10 +265,10 @@ void SimulatorApp::buildControlPanel() {
     ImGui::PopStyleVar();
 
     const int globalStyleVars = 4;
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(16, 8));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 12));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(10, 8));
-    ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 20);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(16, 6));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 10));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(10, 4));
+    ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 18);
 
     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(210.f, 0.6f, 0.6f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(210.f, 0.75f, 0.8f));
@@ -260,26 +281,35 @@ void SimulatorApp::buildControlPanel() {
     ImGui::SameLine();
     ImGui::Checkbox("Hot Reload", &config.hotReloadShaders);
 
-    if (shader->lastReload.has_value()) {
-        auto tm = *std::localtime(&shader->lastReload.value());
-        ImGui::SameLine();
-        ImGui::Text("(last: %u:%u:%u)", tm.tm_hour, tm.tm_min, tm.tm_sec);
+    auto reloaded = shader->lastReloadInfo();
+    ImGui::SameLine();
+    if (reloaded.second.empty()) {
+        ImGui::Text(reloaded.first.c_str());
+    } else {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 1.0f, 1.0f), reloaded.first.c_str());
     }
 
     auto stop = 0.33f * panelWidth;
     ImGui::Text("Time:");
     ImGui::SameLine(stop);
-    ImGui::Text( "%5.2f sec.", shader->iTime.value);
+    ImGui::Text( "%8.2f sec.",
+                 shader->iTime.value);
+    ImGui::Text("FPS:");
+    ImGui::SameLine(stop);
+    ImGui::Text( "%8.2f",
+                 shader->iFPS.value);
     ImGui::Text("Resolution:");
     ImGui::SameLine(stop);
-    ImGui::Text( "%.0f x %.0f", shader->iRect.value.z, shader->iRect.value.w);
-    ImGui::Text("Frame Offset:");
-    ImGui::SameLine(stop);
-    ImGui::Text("%.0f x %.0f", shader->iRect.value.x, shader->iRect.value.y);
+    ImGui::Text( "%4.0f x %4.0f (Offset: .0%f x .0%f)",
+                 shader->iRect.value.z,
+                 shader->iRect.value.w,
+                 shader->iRect.value.x,
+                 shader->iRect.value.y);
 
     if (ImGui::Button("Randomize LED colors")) {
         state->randomize();
     }
+    ImGui::SameLine();
     if (ImGui::Button("Print LED positions")) {
         trophy->printDebug();
     }
@@ -287,9 +317,37 @@ void SimulatorApp::buildControlPanel() {
     ImGui::SliderFloat("LED size",
                        &state->params.ledSize,
                        1.e-3, 1.e-1);
-    ImGui::SliderFloat("LED glow",
-                       &state->params.ledGlow,
-                       0.01f, 5.f);
+    ImGui::SliderFloat("Fog Grading",
+                       &state->params.fogGrading,
+                       0.1f, 5.f);
+    ImGui::SliderFloat("Synthwave Grid Thickness",
+                       &state->params.floorLineWidth,
+                       0.001f, 1.f);
+    ImGui::SliderFloat("Synthwave Grid Exponent",
+                       &state->params.floorExponent,
+                       0.001f, 100.f);
+    ImGui::SliderFloat("Synthwave Grid Glow",
+                       &state->params.floorGrading,
+                       0.001f, 20.f);
+    ImGui::SliderFloat("Pyramid Scale",
+                       &state->params.pyramidScale,
+                       1e-3f, 2.f);
+    ImGui::SliderFloat("Pyramid Y",
+                       &state->params.pyramidY,
+                       -2.f, 2.f);
+    ImGui::SliderFloat("Pyramid Height",
+                       &state->params.pyramidHeight,
+                       0.f, 5.f);
+    ImGui::SliderFloat("Pyramid Angular Velocity",
+                       &state->params.pyramidAngularVelocity,
+                       -5.f, 5.f);
+
+    if (!reloaded.second.empty()) {
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::HSV(210.f, 0.6f, 0.7f));
+        ImGui::TextWrapped(reloaded.second.c_str());
+        ImGui::PopStyleColor();
+    }
 
     ImGui::PopStyleVar(globalStyleVars);
     ImGui::End();

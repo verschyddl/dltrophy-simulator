@@ -21,7 +21,7 @@ class SimulatorApp {
 public:
     const std::string awesomeTitle = "QM's DL Trophy Smiuluator";
 
-    SimulatorApp(Config config);
+    explicit SimulatorApp(Config config);
     ~SimulatorApp();
 
     void run();
@@ -45,9 +45,18 @@ private:
 
     TrophyShader* shader;
 
-    float startTime;
+    float startTimestamp;
+    float latestTimestamp;
     float currentTime;
-    float handleElapsedTime();
+    float previousTime;
+    int currentFrame;
+    float currentFps;
+    void handleTime();
+
+    static const int FPS_SAMPLES = 30;
+    float lastFps[FPS_SAMPLES];
+    float averageFps;
+    float calcAverageFps();
 
     Trophy* trophy;
     ShaderState* state;
