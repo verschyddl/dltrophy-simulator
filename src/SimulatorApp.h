@@ -26,6 +26,8 @@ public:
 
     void run();
 
+    void printDebug() const;
+
 private:
     Config config;
 

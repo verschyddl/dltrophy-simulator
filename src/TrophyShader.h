@@ -68,8 +68,6 @@ public:
     Uniform<int> iPass = Uniform<int>("iPass");
     Uniform<glm::vec4> iMouse = Uniform<glm::vec4>("iMouse");
     Uniform<int> iPreviousImage = Uniform<int>("iPreviousImage");
-
-    bool debugFlag = false;
 };
 
 #endif //DLTROPHY_SIMULATOR_TROPHYSHADER_H

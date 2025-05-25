@@ -315,8 +315,8 @@ void SimulatorApp::buildControlPanel() {
     if (ImGui::Button("Randomize LED colors")) {
         state->randomize();
     }    ImGui::SameLine();
-    if (ImGui::Button("Print LED positions")) {
-        trophy->printDebug();
+    if (ImGui::Button("Print Debug Stuff")) {
+        printDebug();
     }
 
     stop = 0.15f * panelWidth;
@@ -396,3 +396,17 @@ void SimulatorApp::buildControlPanel() {
     ImGui::End();
 }
 
+void SimulatorApp::printDebug() const {
+    trophy->printDebug();
+
+    auto options = *reinterpret_cast<const int32_t*>(&state->options);
+    std::cout << "[Debug State] int options = " << options << " -> 32 bit: ";
+    for (int i = 31; i >= 0; --i) {
+        auto bit = (options >> i) & 1;
+        std::cout << bit;
+        if (i % 8 == 0) {
+            std::cout << " ";
+        }
+    }
+    std::cout << std::endl;
+}

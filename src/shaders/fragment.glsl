@@ -39,7 +39,7 @@ layout(std140) uniform StateBuffer {
     int options;
 };
 
-#define hasOption(index) (options & (1 << index)) != 0
+#define hasOption(index) (options & (1 << (8 * index))) != 0
 
 bool showGrid = hasOption(0);
 bool disableAccumulation = hasOption(1);
@@ -164,6 +164,10 @@ float hash21(vec2 co){
     return fract(sin(dot(co.xy,vec2(1.9898,7.233)))*45758.5433);
 }
 
+//////
+
+// inspiri-stolen from https://www.shadertoy.com/view/tsScRK
+
 float starnoise(vec3 rd){
     float c = 0.;
     vec3 p = normalize(rd)*200.;
@@ -180,6 +184,19 @@ float starnoise(vec3 rd){
     float g = dot(sin(rd*10.512),cos(rd.yzx*10.512));
     c*=smoothstep(-3.14,-.9,g)*.5+.5*smoothstep(-.3,1.,g);
     return c*c;
+}
+
+vec3 background(vec3 rd, vec3 ld) {
+    float haze = 0.3 * exp2(-5.*(abs(rd.y)-.2*dot(rd,ld)));
+    float st = 3. * starnoise(rd * rotateZ(backgroundSpin * iTime)) * (1. - min(haze,1.));
+    vec3 back = vec3(0.,.1,.7)
+    * exp2(-.1*abs(length(rd.xz)/rd.y))
+    * max(sign(rd.y),0.);
+    return (
+    clamp(
+    mix(back, vec3(.3,.1, .52), haze) + st
+    , 0., 1.)
+    );
 }
 
 ////
@@ -332,7 +349,7 @@ void pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out 
     );
 }
 
-vec3 nonPyramidColor(Marched hit, vec3 ray) {
+vec3 surfaceColor(Marched hit, vec3 ray) {
     switch (hit.material) {
         case LED_MATERIAL:
             return to_vec(ledColor[hit.ledIndex]);
@@ -360,15 +377,45 @@ vec3 nonPyramidColor(Marched hit, vec3 ray) {
 Marched traceScene(Ray ray) {
     vec3 col = c.yyy;
     Marched hit;
+    Marched first_hit;
     Ray scatRay;
+    int r;
 
-    for (int r=0; r < MAX_RECURSION; r++) {
+    for (r = 0; r < MAX_RECURSION; r++) {
         hit = marchScene(ray);
+        if (r == 0) {
+            first_hit = hit;
+        }
         if (hit.sd >= MAX_DIST) {
             break;
         }
         if (hit.material != PYRAMID_MATERIAL) {
-            hit.color = nonPyramidColor(hit, advance(ray, hit.sd));
+            hit.color = surfaceColor(hit, advance(ray, hit.sd));
+            break;
+        }
+        // still here? -> hit the pyramid :) is gonne be fun.
+        vec3 attenuation;
+        pyramidScatter(ray, hit, attenuation, scatRay);
+        col *= attenuation;
+        ray = scatRay;
+    }
+    if (hit.sd >= MAX_DIST || r == MAX_RECURSION) {
+        hit.material = MISS;
+        hit.color = c.wyx;
+    }
+    return hit;
+
+    for (int r=0; r < MAX_RECURSION; r++) {
+        hit = marchScene(ray);
+        if (r == 0) {
+            first_hit = hit;
+        }
+        if (hit.sd >= MAX_DIST) {
+            hit.material = MISS;
+            return hit;
+        }
+        if (hit.material != PYRAMID_MATERIAL) {
+            hit.color = surfaceColor(hit, advance(ray, hit.sd));
             return hit;
         }
         // still here? -> hit the pyramid :) is gonne be fun.
@@ -377,22 +424,10 @@ Marched traceScene(Ray ray) {
         col *= attenuation;
         ray = scatRay;
     }
-    hit.material = MISS;
-    hit.color = c.yyy;
-    return hit;
-}
 
-vec3 background(vec3 rd, vec3 ld) { // stolen from https://www.shadertoy.com/view/tsScRK
-    float haze = 0.3 * exp2(-5.*(abs(rd.y)-.2*dot(rd,ld)));
-    float st = 3. * starnoise(rd * rotateZ(backgroundSpin * iTime)) * (1. - min(haze,1.));
-    vec3 back = vec3(0.,.1,.7)
-        * exp2(-.1*abs(length(rd.xz)/rd.y))
-        * max(sign(rd.y),0.);
-    return (
-        clamp(
-            mix(back, vec3(.3,.1, .52), haze) + st
-        , 0., 1.)
-    );
+    col = surfaceColor(first_hit, advance(ray, first_hit.sd));
+    // hit.color = mix(hit.color, col, .5);
+    return hit;
 }
 
 void postProcess(inout vec3 col, in vec2 uv) {
@@ -451,7 +486,6 @@ void main() {
     fragColor = vec4(clampVec3(col), 1.);
 
     if (disableAccumulation) {
-        fragColor = c.xxwx;
         return;
     }
 

@@ -37,14 +37,6 @@ void TrophyShader::initializeProgram(const Config& config) {
     iPreviousImage.loadLocation(program);
     iMouse.loadLocation(program);
 
-    iRect.printDebug();
-    iTime.printDebug();
-    iFPS.printDebug();
-    iFrame.printDebug();
-    iPass.printDebug();
-    iPreviousImage.printDebug();
-    iMouse.printDebug();
-
     initUniformBuffers();
     
     onRectChange(config.windowSize, config);
@@ -245,8 +237,8 @@ void TrophyShader::initFramebuffers(const Rect& rect) {
         framebuffers.assertStatus(i);
 
         // ... is that helpful?
-        glViewport(rect.x, rect.y, rect.width, rect.height);
-        glClear(GL_COLOR_BUFFER_BIT);
+//        glViewport(rect.x, rect.y, rect.width, rect.height);
+//        glClear(GL_COLOR_BUFFER_BIT);
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -303,16 +295,12 @@ void TrophyShader::use() {
         throw std::runtime_error("Cannot use program, because linking failed.");
     }
 
-    // glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(program);
 
     iRect.set();
 
     glActiveTexture(GL_TEXTURE0);
     iPreviousImage.set(0);
-
-    // not required again: (in our case...)
-    // glBindVertexArray(vertexArrayObject);
 }
 
 inline void fillStateUniformBuffer(ShaderState* state) {
@@ -338,10 +326,6 @@ inline void fillStateUniformBuffer(ShaderState* state) {
 }
 
 void TrophyShader::render() {
-    if (debugFlag) {
-        debugFlag = false;
-    }
-
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     fillStateUniformBuffer(state);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
