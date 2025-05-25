@@ -193,22 +193,22 @@ void SimulatorApp::initializeKeyMap() {
     }, {
         GLFW_KEY_G,
         [this](int mods) {
-            toggle(state->params.options.showGrid);
+            toggle(state->options.showGrid);
         }
     }, {
         GLFW_KEY_A,
         [this](int mods) {
-            toggle(state->params.options.disableAccumulation);
+            toggle(state->options.disableAccumulation);
         }
     }, {
         GLFW_KEY_1,
         [this](int mods) {
-            toggle(state->params.options.debug1);
+            toggle(state->options.debug1);
         }
     }, {
         GLFW_KEY_2,
         [this](int mods) {
-            toggle(state->params.options.debug2);
+            toggle(state->options.debug2);
         }
     }};
 }
@@ -383,7 +383,7 @@ void SimulatorApp::buildControlPanel() {
                        -5.f, 20.f);
     ImGui::PopItemWidth();
 
-    ImGui::Checkbox("Don't Accumulate", &state->params.options.disableAccumulation);
+    ImGui::Checkbox("Don't Accumulate", &state->options.disableAccumulation);
 
     if (!reloaded.second.empty()) {
         ImGui::Spacing();

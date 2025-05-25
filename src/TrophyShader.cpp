@@ -308,8 +308,33 @@ void TrophyShader::use() {
 
     iRect.set();
 
+    glActiveTexture(GL_TEXTURE0);
+    iPreviousImage.set(0);
+
     // not required again: (in our case...)
     // glBindVertexArray(vertexArrayObject);
+}
+
+inline void fillStateUniformBuffer(ShaderState* state) {
+    int offset = 0;
+
+    auto putIntoUniformBuffer = [&](size_t size, const void* data) {
+        glBufferSubData(GL_UNIFORM_BUFFER, offset, size, data);
+        offset += size;
+    };
+
+    putIntoUniformBuffer(
+            state->alignedSizeForLeds(),
+            state->leds.data()
+    );
+    putIntoUniformBuffer(
+            sizeof(state->params),
+            &state->params
+    );
+    putIntoUniformBuffer(
+            sizeof(state->options),
+            &state->options
+    );
 }
 
 void TrophyShader::render() {
@@ -318,30 +343,10 @@ void TrophyShader::render() {
     }
 
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
-    int offset = 0;
-    glBufferSubData(GL_UNIFORM_BUFFER,
-                    offset,
-                    state->alignedSizeForLeds(),
-                    state->leds.data()
-    );
-    offset += state->alignedSizeForLeds();
-    glBufferSubData(GL_UNIFORM_BUFFER,
-                    offset,
-                    sizeof(state->params),
-                    &state->params
-    );
-//    offset += sizeof(state->params),
-//    glBufferSubData(GL_UNIFORM_BUFFER,
-//                    offset,
-//                    sizeof(state->options),
-//                    &state->options
-//    );
+    fillStateUniformBuffer(state);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     auto order = framebuffers.getOrderAndAdvance();
-
-    glActiveTexture(GL_TEXTURE0);
-    iPreviousImage.set(0);
 
     iPass.set(0);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffers.object[order.first]);

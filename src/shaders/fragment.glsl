@@ -27,7 +27,6 @@ layout(std140) uniform StateBuffer {
     RGB ledColor[nLeds];
     float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
-    float diffuseAmount, specularAmount, specularGrading;
     float fogScaling, fogGrading;
     float floorSpacingX, floorSpacingZ,
           floorLineWidth, floorExponent, floorGrading;
@@ -284,10 +283,6 @@ Marched marchScene(Ray ray) {
     return hit;
 }
 
-//vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-//    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-//}
-
 float schlick(float cosine, float ior) {
     float r0 = (1.-ior)/(1.+ior);
     r0 = r0*r0;
@@ -401,9 +396,9 @@ vec3 background(vec3 rd, vec3 ld) { // stolen from https://www.shadertoy.com/vie
 }
 
 void postProcess(inout vec3 col, in vec2 uv) {
-    float rf = length(uv) * 0.5;
-    rf = rf * rf + 1.;
-    rf = 1. / (rf * rf);
+    float rf = length(uv) * 0.8;
+    rf = pow(rf, 4.2) + 1.;
+    rf = pow(rf, -1.6);
     col *= clamp(rf, 0., 1.);
 }
 

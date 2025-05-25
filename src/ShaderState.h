@@ -56,17 +56,13 @@ struct ShaderOptions {
 struct Parameters {
     // if only floats (or other 4 byte-data), this makes alignment easy
     // therefore e.g. do not keep camera position as vec3 -> gets annoying
-    float ledSize;
-    float ledGlow;
+    float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
-    float diffuseMix, specularMix, specularGrading;
     float fogScaling, fogGrading;
     float floorSpacingX, floorSpacingZ, floorLineWidth, floorExponent, floorGrading;
     float pyramidX, pyramidY, pyramidZ, pyramidScale, pyramidHeight, pyramidAngle, pyramidAngularVelocity;
     float epoxyPermittivity;
     float backgroundSpin;
-
-    ShaderOptions options;
 };
 
 struct ShaderState {
@@ -82,9 +78,6 @@ struct ShaderState {
         .camZ = -1.8,
         .camFov = 1.3,
         .camTilt = 12.3,
-        .diffuseMix = 0.7,
-        .specularMix = 0.40,
-        .specularGrading = 2.1,
         .fogScaling = 0.0001,
         .fogGrading = 1.9,
         .floorSpacingX = 2.21,
@@ -101,10 +94,10 @@ struct ShaderState {
         .pyramidAngularVelocity = 0.,
         .epoxyPermittivity = 1.1,
         .backgroundSpin = 0.1,
-        .options = {
-                .showGrid = false,
-                .disableAccumulation = true,
-        },
+    };
+    ShaderOptions options {
+        .showGrid = false,
+        .disableAccumulation = true,
     };
 
     explicit ShaderState(Trophy* trophy):
@@ -118,7 +111,9 @@ struct ShaderState {
         };
 
     GLsizeiptr alignedTotalSize() {
-        return alignedSizeForLeds() + sizeof(params);
+        return alignedSizeForLeds()
+                + sizeof(params)
+                + sizeof(options);
     }
 
     GLsizeiptr alignedSizeForLeds() {
