@@ -12,6 +12,7 @@
 #include <fstream>
 #include <filesystem>
 #include <string>
+#include <map>
 #include "FileHelper.h"
 
 #include <glad/gl.h>
@@ -115,6 +116,8 @@ public:
         }
         if constexpr (std::is_same_v<T, float>) {
             glUniform1f(location, value);
+        } else if constexpr (std::is_same_v<T, int>) {
+            glUniform1i(location, value);
         } else if constexpr (std::is_same_v<T, glm::vec2>) {
             glUniform2f(location, value.x, value.y);
         } else if constexpr (std::is_same_v<T, glm::vec3>) {
@@ -130,6 +133,25 @@ public:
         value = to;
         set();
     }
+};
+
+// TODO: this might be a useful struct....
+//struct ShaderPass {
+//    GLuint framebufferObject;
+//    GLuint textureId;
+//    GLenum framebufferStatus;
+//    ...
+//}
+const std::map<GLenum, std::string> framebufferStatusMessages = {
+        {GL_FRAMEBUFFER_COMPLETE, "Framebuffer complete"},
+        {GL_FRAMEBUFFER_UNDEFINED, "Framebuffer undefined"},
+        {GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT, "Framebuffer incomplete attachment"},
+        {GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT, "Framebuffer incomplete missing attachment"},
+        {GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER, "Framebuffer incomplete draw buffer"},
+        {GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER, "Framebuffer incomplete read buffer"},
+        {GL_FRAMEBUFFER_UNSUPPORTED, "Framebuffer unsupported"},
+        {GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE, "Framebuffer incomplete multisample"},
+        {GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS, "Framebuffer incomplete layer targets"}
 };
 
 #endif //DLTROPHY_SIMULATOR_SHADERHELPERS_H

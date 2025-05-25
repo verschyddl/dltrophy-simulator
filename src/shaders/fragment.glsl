@@ -8,6 +8,9 @@ uniform float iTime;
 uniform vec4 iRect;
 uniform float iFPS;
 uniform vec4 iMouse;
+uniform int iFrame;
+uniform int iPass;
+uniform sampler2D iPreviousImage;
 
 const int nLeds = 172;
 
@@ -22,9 +25,7 @@ struct RGB { // last value is only for alignment, never used.
 
 layout(std140) uniform StateBuffer {
     RGB ledColor[nLeds];
-    float ledSize;
-    float ledExponent;
-
+    float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
     float diffuseAmount, specularAmount, specularGrading;
     float fogScaling, fogGrading;
@@ -87,13 +88,13 @@ vec3 draw_grid(in vec2 uv) {
 
 // 3D GEOMETRY
 
-#define clampVec3(x) clamp(x, vec3(0), vec3(1));
+#define clampVec3(x) clamp(x, vec3(0), vec3(1))
 
 const vec2 epsilon = c.xz * 0.0005;
 
 mat3 rotateX(float theta) {
-    float c = cos(theta);
-    float s = sin(theta);
+    float c = cos(theta * rad);
+    float s = sin(theta * rad);
     return mat3(
         vec3(1,  0,  0),
         vec3(0,  c, -s),
@@ -102,8 +103,8 @@ mat3 rotateX(float theta) {
 }
 
 mat3 rotateY(float theta) {
-    float c = cos(theta);
-    float s = sin(theta);
+    float c = cos(theta * rad);
+    float s = sin(theta * rad);
     return mat3(
         vec3( c, 0, s),
         vec3( 0, 1, 0),
@@ -194,10 +195,10 @@ float sdPyramid( vec3 p )
 
 const float MAX_DIST = 1.e3;
 const float MIN_DIST = 1.e-3;
-const int MAX_STEPS = 200;
+const int MAX_STEPS = 80;
 // Note: The Epoxy Pyramid needs some Ray Tracing:
 const float PYRAMID_STEP = 0.1;
-const int MAX_RECURSION = 6;
+const int MAX_RECURSION = 10;
 
 #define MARCH_SDF(SDF, MAT) sd = SDF; if (sd < hit.sd) { hit.sd = sd; hit.material = MAT; }
 
@@ -349,12 +350,13 @@ Marched traceScene(Ray ray) {
             col *= attenuation;
             ray = scatRay;
         } else {
-            hit.color = c.yyw; // is that right to discard?? choose alarming color (pissgelb)
+            // is that right to discard?? choose alarming color (c.xxw = pissgelb)
+            hit.color = c.yyy; // c.xxw;
             return hit;
         }
     }
     hit.material = MISS;
-    hit.color = c.xxx;
+    hit.color = c.yyy;
     return hit;
 }
 
@@ -391,6 +393,7 @@ Marched oldMarcher(vec3 ro, vec3 rd) {
 */
 
 void main() {
+    vec2 st = (gl_FragCoord.xy) / (iResolution + iRect.xy);
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;
 
     uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
@@ -416,7 +419,7 @@ void main() {
 
     vec3 ro = vec3(camX, camY, camZ);
     vec3 rd = normalize(vec3(uv, camFov));
-    rd *= rotateX(camTilt * rad);
+    rd *= rotateX(camTilt);
     Ray ray = Ray(ro, rd);
     Marched hit = traceScene(ray);
 
@@ -430,5 +433,16 @@ void main() {
         col += 0.2 * grid;
     }
 
-    fragColor.rgb = clampVec3(col);
+    vec4 previousImage = texture(iPreviousImage, st);
+
+    if (iPass == 1) {
+        fragColor = vec4(previousImage.rgb / previousImage.a, 1.);
+        return;
+    }
+
+    fragColor = vec4(clampVec3(col), 1.);
+
+    if (iFrame > 0) {
+        fragColor += previousImage;
+    }
 }

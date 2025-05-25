@@ -120,6 +120,7 @@ void SimulatorApp::run() {
 
         shader->use();
         shader->iTime.set(currentTime);
+        shader->iFrame.set(currentFrame);
         shader->iFPS.set(averageFps);
         shader->render();
 
@@ -265,9 +266,9 @@ void SimulatorApp::buildControlPanel() {
     ImGui::PopStyleVar();
 
     const int globalStyleVars = 4;
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(16, 6));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 10));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(10, 4));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12, 6));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(6, 4));
     ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 18);
 
     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(210.f, 0.6f, 0.6f));
@@ -289,7 +290,7 @@ void SimulatorApp::buildControlPanel() {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 1.0f, 1.0f), reloaded.first.c_str());
     }
 
-    auto stop = 0.33f * panelWidth;
+    auto stop = 0.24f * panelWidth;
     ImGui::Text("Time:");
     ImGui::SameLine(stop);
     ImGui::Text( "%8.2f sec.",
@@ -300,7 +301,7 @@ void SimulatorApp::buildControlPanel() {
                  shader->iFPS.value);
     ImGui::Text("Resolution:");
     ImGui::SameLine(stop);
-    ImGui::Text( "%4.0f x %4.0f (Offset: .0%f x .0%f)",
+    ImGui::Text( "%4.0f x %4.0f (Offset: %.0f x %.0f)",
                  shader->iRect.value.z,
                  shader->iRect.value.w,
                  shader->iRect.value.x,
@@ -314,6 +315,28 @@ void SimulatorApp::buildControlPanel() {
         trophy->printDebug();
     }
 
+    stop = 0.22 * panelWidth;
+    ImGui::PushItemWidth(stop);
+    ImGui::SliderFloat("##X",
+                       &state->params.camX,
+                       -1.f, +1.f);
+    ImGui::SameLine();
+    ImGui::SliderFloat("##Y",
+                       &state->params.camY,
+                       -1.f, +1.f);
+    ImGui::SameLine();
+    ImGui::SliderFloat("##Z Camera",
+                       &state->params.camZ,
+                       -5.f, -1.f);
+    ImGui::PopItemWidth();
+
+    ImGui::PushItemWidth(2. * stop);
+    ImGui::SliderFloat("Camera FOV",
+                       &state->params.camFov,
+                       0.1f, 2.1f);
+    ImGui::SliderFloat("Camera Tilt",
+                       &state->params.camTilt,
+                       -60.f, 60.f);
     ImGui::SliderFloat("LED size",
                        &state->params.ledSize,
                        1.e-3, 1.e-1);
@@ -338,12 +361,16 @@ void SimulatorApp::buildControlPanel() {
     ImGui::SliderFloat("Pyramid Height",
                        &state->params.pyramidHeight,
                        0.f, 5.f);
+    ImGui::SliderFloat("Pyramid Rotation Angle",
+                       &state->params.pyramidAngle,
+                       -180.f, 180.f);
     ImGui::SliderFloat("Pyramid Angular Velocity",
                        &state->params.pyramidAngularVelocity,
-                       -5.f, 5.f);
+                       -30.f, 30.f);
     ImGui::SliderFloat("Pyramid Epoxy Permittivity",
                        &state->params.epoxyPermittivity,
                        0.f, 50.f);
+    ImGui::PopItemWidth();
 
     if (!reloaded.second.empty()) {
         ImGui::Spacing();

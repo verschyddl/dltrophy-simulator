@@ -32,6 +32,10 @@ private:
     void initVertices();
     static std::array<float, 18> createQuadVertices();
 
+    GLuint framebufferObject = 0;
+    GLuint feedbackTexture = 0;
+    void initFeedbackFramebuffer(const Rect& rect);
+
     ShaderState *state;
     GLuint stateBufferId = 0;
     GLuint definitionBufferId = 0;
@@ -45,10 +49,13 @@ public:
     ~TrophyShader();
 
     // TODO: this can surely be made more elegant, but pls. brain. quiet now.
-    Uniform<float> iTime = Uniform<float>("iTime");
     Uniform<glm::vec4> iRect = Uniform<glm::vec4>("iRect");
+    Uniform<float> iTime = Uniform<float>("iTime");
     Uniform<float> iFPS = Uniform<float>("iFPS");
+    Uniform<int> iFrame = Uniform<int>("iFrame");
+    Uniform<int> iPass = Uniform<int>("iPass");
     Uniform<glm::vec4> iMouse = Uniform<glm::vec4>("iMouse");
+    Uniform<int> iPreviousImage = Uniform<int>("iPreviousImage");
 
     void use();
     void render();

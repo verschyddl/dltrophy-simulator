@@ -92,10 +92,10 @@ struct ShaderState {
         .pyramidX = 0.,
         .pyramidY = -.5,
         .pyramidZ = 0.,
-        .pyramidScale = 1.77,
+        .pyramidScale = 1.73,
         .pyramidHeight = 0.85,
-        .pyramidAngle = 0.,
-        .pyramidAngularVelocity = 0.2,
+        .pyramidAngle = -10.,
+        .pyramidAngularVelocity = 0.,
         .epoxyPermittivity = 1.1,
     };
     ShaderOptions options {

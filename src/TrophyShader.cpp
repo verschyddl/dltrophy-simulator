@@ -32,6 +32,9 @@ void TrophyShader::initializeProgram(const Config& config) {
     iRect.loadLocation(program);
     iTime.loadLocation(program);
     iFPS.loadLocation(program);
+    iFrame.loadLocation(program);
+    iPass.loadLocation(program);
+    iPreviousImage.loadLocation(program);
     iMouse.loadLocation(program);
 
     initUniformBuffers();
@@ -47,6 +50,8 @@ void TrophyShader::teardown() {
     glDeleteBuffers(1, &vertexBufferObject);
     glDeleteBuffers(1, &stateBufferId);
     glDeleteBuffers(1, &definitionBufferId);
+    glDeleteFramebuffers(1, &framebufferObject);
+    glDeleteTextures(1, &feedbackTexture);
 }
 
 void TrophyShader::onRectChange(Size resolution, const Config& config) {
@@ -54,6 +59,7 @@ void TrophyShader::onRectChange(Size resolution, const Config& config) {
     iRect.value = glm::vec4(rect.x, rect.y, rect.width, rect.height);
     glViewport(rect.x, rect.y, rect.width, rect.height);
     initVertices();
+    initFeedbackFramebuffer(rect);
 }
 
 void TrophyShader::reload(const Config& config) {
@@ -196,6 +202,53 @@ void TrophyShader::initVertices() {
     glEnableVertexAttribArray(positionAttributeLocation);
 }
 
+void TrophyShader::initFeedbackFramebuffer(const Rect& rect) {
+    if (framebufferObject > 0) {
+        glDeleteFramebuffers(1, &framebufferObject);
+    }
+    if (feedbackTexture > 0) {
+        glDeleteTextures(1, &feedbackTexture);
+    }
+
+    glGenTextures(1, &feedbackTexture);
+    glBindTexture(GL_TEXTURE_2D, feedbackTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Framebuffer must include the near-origin part of the shader view offset
+    glTexImage2D(GL_TEXTURE_2D,
+                 0,
+                 GL_RGBA16F, // GL_RGBA8,
+                 rect.width + rect.x,
+                 rect.height + rect.y,
+                 0,
+                 GL_RGBA,
+                 GL_FLOAT, // GL_UNSIGNED_BYTE,
+                 nullptr);
+
+    glGenFramebuffers(1, &framebufferObject);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebufferObject);
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+                           GL_COLOR_ATTACHMENT0,
+                           GL_TEXTURE_2D,
+                           feedbackTexture,
+                           0);
+
+    GLuint status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        throw std::runtime_error(std::format(
+                "Framebuffer Creation failed: {} ({})",
+                framebufferStatusMessages.at(status),
+                status
+        ));
+    }
+
+    glViewport(rect.x, rect.y, rect.width, rect.height);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 void TrophyShader::initUniformBuffers() {
     // pass LEDs as Uniform Buffers, but separated in
     // - the Definition (is set once)
@@ -245,16 +298,20 @@ void TrophyShader::use() {
     if (!program.works()) {
         throw std::runtime_error("Cannot use program, because linking failed.");
     }
+
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(program);
+
+    iRect.set();
+
+    // not required again (in our case.)
+    // glBindVertexArray(vertexArrayObject);
 }
 
 void TrophyShader::render() {
     if (debugFlag) {
         debugFlag = false;
     }
-
-    iRect.set();
 
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     int offset = 0;
@@ -275,9 +332,17 @@ void TrophyShader::render() {
                     sizeof(state->options),
                     &state->options
     );
-
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+    iPass.set(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebufferObject);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    iPass.set(1);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    iPreviousImage.set(0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, feedbackTexture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
