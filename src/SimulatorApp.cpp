@@ -193,17 +193,22 @@ void SimulatorApp::initializeKeyMap() {
     }, {
         GLFW_KEY_G,
         [this](int mods) {
-            toggle(state->options.showGrid);
+            toggle(state->params.options.showGrid);
         }
     }, {
-        GLFW_KEY_D,
+        GLFW_KEY_A,
         [this](int mods) {
-            state->params.ledSize *= 1.05;
+            toggle(state->params.options.disableAccumulation);
         }
-              }, {
-        GLFW_KEY_F,
+    }, {
+        GLFW_KEY_1,
         [this](int mods) {
-            state->params.ledSize /= 1.05;
+            toggle(state->params.options.debug1);
+        }
+    }, {
+        GLFW_KEY_2,
+        [this](int mods) {
+            toggle(state->params.options.debug2);
         }
     }};
 }
@@ -267,7 +272,7 @@ void SimulatorApp::buildControlPanel() {
 
     const int globalStyleVars = 4;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12, 6));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 6));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(6, 4));
     ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 18);
 
@@ -309,15 +314,14 @@ void SimulatorApp::buildControlPanel() {
 
     if (ImGui::Button("Randomize LED colors")) {
         state->randomize();
-    }
-    ImGui::SameLine();
+    }    ImGui::SameLine();
     if (ImGui::Button("Print LED positions")) {
         trophy->printDebug();
     }
 
-    stop = 0.2 * panelWidth;
+    stop = 0.15f * panelWidth;
     ImGui::PushItemWidth(stop);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
     ImGui::SliderFloat("##Camera X",
                        &state->params.camX,
                        -1.f, +1.f);
@@ -347,6 +351,9 @@ void SimulatorApp::buildControlPanel() {
     ImGui::SliderFloat("Fog Grading",
                        &state->params.fogGrading,
                        0.1f, 5.f);
+    ImGui::SliderFloat("Background Spin",
+                       &state->params.backgroundSpin,
+                       0.f, 100.f);
     ImGui::SliderFloat("Synthwave Grid Thickness",
                        &state->params.floorLineWidth,
                        0.001f, 1.f);
@@ -373,8 +380,10 @@ void SimulatorApp::buildControlPanel() {
                        -30.f, 30.f);
     ImGui::SliderFloat("Pyramid Epoxy Permittivity",
                        &state->params.epoxyPermittivity,
-                       0.f, 50.f);
+                       -5.f, 20.f);
     ImGui::PopItemWidth();
+
+    ImGui::Checkbox("Don't Accumulate", &state->params.options.disableAccumulation);
 
     if (!reloaded.second.empty()) {
         ImGui::Spacing();

@@ -227,7 +227,7 @@ void TrophyShader::initFramebuffers(const Rect& rect) {
         // the resolution must include the origin shift, I suppose to have found out
         glTexImage2D(GL_TEXTURE_2D,
                      0,
-                     GL_RGBA16F,
+                     GL_RGBA32F,
                      rect.width + rect.x,
                      rect.height + rect.y,
                      0,
@@ -244,8 +244,9 @@ void TrophyShader::initFramebuffers(const Rect& rect) {
         framebuffers.status[i] = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         framebuffers.assertStatus(i);
 
-//        glViewport(rect.x, rect.y, rect.width, rect.height);
-//        glClear(GL_COLOR_BUFFER_BIT);
+        // ... is that helpful?
+        glViewport(rect.x, rect.y, rect.width, rect.height);
+        glClear(GL_COLOR_BUFFER_BIT);
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -329,12 +330,12 @@ void TrophyShader::render() {
                     sizeof(state->params),
                     &state->params
     );
-    offset += sizeof(state->params),
-    glBufferSubData(GL_UNIFORM_BUFFER,
-                    offset,
-                    sizeof(state->options),
-                    &state->options
-    );
+//    offset += sizeof(state->params),
+//    glBufferSubData(GL_UNIFORM_BUFFER,
+//                    offset,
+//                    sizeof(state->options),
+//                    &state->options
+//    );
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     auto order = framebuffers.getOrderAndAdvance();

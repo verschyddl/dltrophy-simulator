@@ -35,6 +35,7 @@ layout(std140) uniform StateBuffer {
           pyramidScale, pyramidHeight,
           pyramidAngle, pyramidAngularVelocity;
     float epoxyPermittivity;
+    float backgroundSpin;
 
     int options;
 };
@@ -112,6 +113,16 @@ mat3 rotateY(float theta) {
     );
 }
 
+mat3 rotateZ(float theta) {
+    float c = cos(theta * rad);
+    float s = sin(theta * rad);
+    return mat3(
+        vec3( c, -s, 0),
+        vec3(+s,  c, 0),
+        vec3( 0,  0, 1)
+    );
+}
+
 struct Marched {
     float sd;
     int material;
@@ -150,13 +161,35 @@ vec2 hash2(inout float seed) {
     return vec2(rz.xy & uvec2(0x7fffffffU))/float(0x7fffffff);
 }
 
+float hash21(vec2 co){
+    return fract(sin(dot(co.xy,vec2(1.9898,7.233)))*45758.5433);
+}
+
+float starnoise(vec3 rd){
+    float c = 0.;
+    vec3 p = normalize(rd)*200.;
+    for (float i=0.;i<4.;i++)
+    {
+        vec3 q = fract(p)-.5;
+        vec3 id = floor(p);
+        float c2 = smoothstep(.5,0.,length(q));
+        c2 *= step(hash21(id.xz/id.y),.06-i*i*0.005);
+        c += c2;
+        p = p*.6+.5*p*mat3(3./5.,0,4./5.,0,1,0,-4./5.,0,3./5.);
+    }
+    c*=c;
+    float g = dot(sin(rd*10.512),cos(rd.yzx*10.512));
+    c*=smoothstep(-3.14,-.9,g)*.5+.5*smoothstep(-.3,1.,g);
+    return c*c;
+}
+
 ////
 
 vec3 floorColor = vec3(0., 0.73 - 0.2 * cos(iTime), 0.94 - 0.05 * sin(0.4 * iTime));
 
 Marched sdFloor(vec3 p, float level) {
     float d = p.y - level;
-    return Marched(d, FLOOR_MATERIAL, c.yyy, -1, c.xyx);
+    return Marched(d, FLOOR_MATERIAL, c.xxx, -1, c.xyx);
 }
 
 float sdSphere(vec3 p, vec3 center, float radius) {
@@ -193,14 +226,12 @@ float sdPyramid( vec3 p )
 
 // RAY MARCHING / TRACING
 
-const float MAX_DIST = 1.e3;
+const float MAX_DIST = 500.;
 const float MIN_DIST = 1.e-3;
-const int MAX_STEPS = 80;
-// Note: The Epoxy Pyramid needs some Ray Tracing:
-const float PYRAMID_STEP = 0.1;
-const int MAX_RECURSION = 20;
-
-#define MARCH_SDF(SDF, MAT) sd = SDF; if (sd < hit.sd) { hit.sd = sd; hit.material = MAT; }
+const int MAX_STEPS = 120;
+// Note: The Epoxy Pyramid needs Ray Tracing:
+const int MAX_RECURSION = 8;
+const float PYRAMID_STEP = 0.1; // unused yet
 
 Marched sdScene(vec3 p) {
     Marched hit = sdFloor(p, -4.);
@@ -275,13 +306,12 @@ bool modifiedRefract(const in vec3 p, const in vec3 normal, const in float ni_ov
 }
 
 void pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out Ray scattered) {
-    // we only need the dielectric part from RIOW
-    // and we can get rid of the boolean, whether scattering happened. it did.
+    // this resembles dielectric part from RIOW
     vec3 normal, refracted;
     vec3 reflected = reflect(ray.dir, hit.normal);
     float ni_over_nt, cosine;
 
-    attenuation = c.xxx; // könnte hier einfärben
+    attenuation = vec3(1.,0.,1.);
     if (dot(ray.dir, hit.normal) > 0.) {
         normal = -hit.normal;
         ni_over_nt = epoxyPermittivity;
@@ -300,7 +330,8 @@ void pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out 
         reflectProbability = schlick(cosine, epoxyPermittivity);
     }
     vec3 currentPosition = advance(ray, hit.sd);
-    scattered = Ray(currentPosition,
+    scattered = Ray(
+        currentPosition,
         hash1(globalSeed) < reflectProbability
             ? reflected : refracted
     );
@@ -310,6 +341,7 @@ vec3 nonPyramidColor(Marched hit, vec3 ray) {
     switch (hit.material) {
         case LED_MATERIAL:
             return to_vec(ledColor[hit.ledIndex]);
+
         case FLOOR_MATERIAL:
             // Synthwave Grid ftw.
             vec2 f = vec2(
@@ -321,9 +353,11 @@ vec3 nonPyramidColor(Marched hit, vec3 ray) {
             f = pow(f, vec2(floorExponent));
             float g = pow(f.x+f.y, 1./floorGrading);
             g = clamp(g, 0., 1.);
-            return mix(hit.color, floorColor, g);
+            const vec3 dark = 0.3 * vec3(.2, .1, .32);
+            return mix(dark, floorColor, g);
+
         default:
-            // Signalfarbe (Orange), kann ja aber nie(TM) vorkommen.
+            // Ein ulkiges Orange, kann ja aber nie(TM) vorkommen.
             return c.xwy;
     }
 }
@@ -336,7 +370,7 @@ Marched traceScene(Ray ray) {
     for (int r=0; r < MAX_RECURSION; r++) {
         hit = marchScene(ray);
         if (hit.sd >= MAX_DIST) {
-            hit.material = MISS;
+            break;
         }
         if (hit.material != PYRAMID_MATERIAL) {
             hit.color = nonPyramidColor(hit, advance(ray, hit.sd));
@@ -353,37 +387,25 @@ Marched traceScene(Ray ray) {
     return hit;
 }
 
-/*
-Marched oldMarcher(vec3 ro, vec3 rd) {
-    float d = hit.sd;
-    if (d >= MAX_DIST) {
-        hit.material = MISS;
-        return hit;
-    }
-
-    vec3 col, normal, refl, sunPos, sunDir;
-    ray = ro + rd * d;
-    col = nonPyramidColor(hit, ray);
-    normal = calcNormal(ray);
-
-    // sunPos = ... egal, gleichmäßig paralleles Licht:
-    sunDir = normalize(vec3(0.3, 2., 1.));
-
-    float diffuse = dot(normal, sunDir);
-    diffuse = clamp(diffuse, 0., 1.);
-    d = mix(d, diffuse, diffuseAmount);
-
-    refl = reflect(sunDir, normal);
-    float specular = dot(refl, normalize(ray));
-    specular = clamp(specular, 0., 1.);
-    specular = pow(specular, specularGrading);
-    d = mix(d, specular, specularAmount);
-
-    col = mix(fragColor.rgb, col, exp(-fogScaling * pow(hit.sd, fogGrading)));
-    hit.color = col;
-    return hit;
+vec3 background(vec3 rd, vec3 ld) { // stolen from https://www.shadertoy.com/view/tsScRK
+    float haze = 0.3 * exp2(-5.*(abs(rd.y)-.2*dot(rd,ld)));
+    float st = 3. * starnoise(rd * rotateZ(backgroundSpin * iTime)) * (1. - min(haze,1.));
+    vec3 back = vec3(0.,.1,.7)
+        * exp2(-.1*abs(length(rd.xz)/rd.y))
+        * max(sign(rd.y),0.);
+    return (
+        clamp(
+            mix(back, vec3(.3,.1, .52), haze) + st
+        , 0., 1.)
+    );
 }
-*/
+
+void postProcess(inout vec3 col, in vec2 uv) {
+    float rf = length(uv) * 0.5;
+    rf = rf * rf + 1.;
+    rf = 1. / (rf * rf);
+    col *= clamp(rf, 0., 1.);
+}
 
 void main() {
     vec2 st = (gl_FragCoord.xy) / (iResolution + iRect.xy);
@@ -391,11 +413,9 @@ void main() {
 
     uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
     globalSeed = float(base_hash(bits))/float(0xffffffffU)+iTime;
-    if (!disableAccumulation) {
-        uv += hash2(globalSeed) / iResolution;
-    }
+    uv += hash2(globalSeed) / iResolution;
 
-    fragColor = c.yyyx;
+    fragColor = c.xxxy;
     vec3 col = fragColor.rgb;
 
     if (max(abs(uv.x / aspectRatio), abs(uv.y)) > 0.99) { // frame ?
@@ -412,9 +432,14 @@ void main() {
         fragColor.rgb = 0.5 * grid;
     }
 
+    vec3 lightDir = normalize(vec3(0,.125+.05*sin(.1*iTime),1));
+
     vec3 ro = vec3(camX, camY, camZ);
     vec3 rd = normalize(vec3(uv, camFov));
     rd *= rotateX(camTilt);
+
+    fragColor.rgb = background(rd, lightDir);
+
     Ray ray = Ray(ro, rd);
     Marched hit = traceScene(ray);
 
@@ -431,6 +456,7 @@ void main() {
     fragColor = vec4(clampVec3(col), 1.);
 
     if (disableAccumulation) {
+        fragColor = c.xxwx;
         return;
     }
 
@@ -438,10 +464,12 @@ void main() {
 
     if (iPass == 1) {
         col = previousImage.rgb / previousImage.a;
-        // TODO: could add post processing like simple color grading blablabluuu
+        postProcess(col, uv);
         fragColor = vec4(col, 1.);
+        return;
     }
-    else if (iFrame > 0) {
+
+    if (iFrame > 0) {
         fragColor += previousImage;
     }
 }

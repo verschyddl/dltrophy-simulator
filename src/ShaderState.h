@@ -64,6 +64,9 @@ struct Parameters {
     float floorSpacingX, floorSpacingZ, floorLineWidth, floorExponent, floorGrading;
     float pyramidX, pyramidY, pyramidZ, pyramidScale, pyramidHeight, pyramidAngle, pyramidAngularVelocity;
     float epoxyPermittivity;
+    float backgroundSpin;
+
+    ShaderOptions options;
 };
 
 struct ShaderState {
@@ -97,10 +100,11 @@ struct ShaderState {
         .pyramidAngle = -10.,
         .pyramidAngularVelocity = 0.,
         .epoxyPermittivity = 1.1,
-    };
-    ShaderOptions options {
-        .showGrid = false,
-        .disableAccumulation = true,
+        .backgroundSpin = 0.1,
+        .options = {
+                .showGrid = false,
+                .disableAccumulation = true,
+        },
     };
 
     explicit ShaderState(Trophy* trophy):
@@ -114,9 +118,7 @@ struct ShaderState {
         };
 
     GLsizeiptr alignedTotalSize() {
-        return alignedSizeForLeds()
-            + sizeof(params)
-            + sizeof(options);
+        return alignedSizeForLeds() + sizeof(params);
     }
 
     GLsizeiptr alignedSizeForLeds() {
