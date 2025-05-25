@@ -230,13 +230,19 @@ void SimulatorApp::handleMouseInput() {
 }
 
 void SimulatorApp::handleUdpMessages() {
-    auto package = receiver->listen();
-    if (!package.has_value())
+    auto maybeMessage = receiver->listen();
+    if (!maybeMessage.has_value())
         return;
+    auto message = maybeMessage.value();
 
-    std::cout << "GOT PACKAGE \"" << package.value().received_message
-              << "\" from: " << to_string(package.value().sender)
-              << std::endl;
+    std::cout << "[Debug Package] from " << message.source << ", "
+                              << "size " << message.values.size() << ": ";
+    for (const auto& value : message.values) {
+        std::cout << value << " ";
+    }
+    std::cout << std::endl;
+
+    // TODO: sich davon beeindrucken lassen
 }
 
 void SimulatorApp::handleResize() {

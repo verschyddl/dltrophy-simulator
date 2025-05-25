@@ -10,7 +10,7 @@
 struct Config {
     std::string host;
     int port;
-    std::vector<std::vector<int>> messages;
+    std::vector<std::vector<uint8_t>> messages;
     int delayMs;
     int repeats;
 };
