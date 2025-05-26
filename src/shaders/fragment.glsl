@@ -380,6 +380,9 @@ Marched traceScene(Ray ray) {
     Ray scatRay;
     int r;
 
+    // TODO: limit tracing to only the pyramid range, after that there's only the floor plane
+    // -> draw that by algebraic methods analytically!
+
     for (r = 0; r < MAX_RECURSION; r++) {
         hit = marchScene(ray);
         if (r == 0) {

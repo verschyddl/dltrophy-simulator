@@ -12,37 +12,7 @@
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 #include "Trophy.h"
-
-struct LED {
-
-private:
-    GLuint r;
-    GLuint g;
-    GLuint b;
-    // this struct must match a multiple of 4 bytes
-    // to be passed directly into the buffers, thus:
-    [[maybe_unused]] GLuint _unusedAlignment = 0;
-
-public:
-    LED(GLuint R, GLuint G, GLuint B)
-    : r(R), g(G), b(B) {}
-
-    LED(GLuint W)
-    : LED(W, W, W) {}
-
-    LED() = default;
-
-    void set(LED led) {
-        r = led.r;
-        g = led.g;
-        b = led.b;
-    }
-
-    GLuint gray() const {
-        auto w = 0.299 * r + 0.587 * g + 0.114 * b;
-        return static_cast<GLuint>(w);
-    }
-};
+#include "LED.h"
 
 struct ShaderOptions {
     // this needs minimum alignment (GLint = 4 bytes), therefore a multiple of 4 of flags.

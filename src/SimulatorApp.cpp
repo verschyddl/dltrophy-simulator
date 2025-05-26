@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "SimulatorApp.h"
+#include "UdpInterpreter.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -230,19 +231,42 @@ void SimulatorApp::handleMouseInput() {
 }
 
 void SimulatorApp::handleUdpMessages() {
-    auto maybeMessage = receiver->listen();
-    if (!maybeMessage.has_value())
+    auto packet = receiver->listen();
+    if (!packet.has_value())
         return;
-    auto message = maybeMessage.value();
 
-    std::cout << "[Debug Package] from " << message.source << ", "
-                              << "size " << message.values.size() << ": ";
-    for (const auto& value : message.values) {
-        std::cout << value << " ";
-    }
-    std::cout << std::endl;
+    auto message = UdpInterpreter::interpret(*packet);
+    auto now = std::time(nullptr);
+    auto timestamp = std::put_time(std::localtime(&now), "%Y-%m-%d %H:%M:%S");
 
-    // TODO: sich davon beeindrucken lassen
+    std::visit(
+        [this, timestamp](const auto& msg) {
+            using T = std::decay_t<decltype(msg)>;
+
+            if constexpr (std::is_same_v<T, ProtocolMessage>) {
+
+                for (const auto& [index, led]: msg.mapping) {
+                    try {
+                        this->state->set(index, led);
+                    } catch (const std::exception& e) {
+                        std::cerr << e.what() << std::endl;
+                    }
+                }
+
+                std::cout << "[" << timestamp << "][Debug Message] "
+                          << msg.mapping.size() << " LEDs"
+                          << " from " << msg.source
+                          << std::endl;
+
+            } else if constexpr (std::is_same_v<T, UnreadableMessage>) {
+                std::cerr << "[" << timestamp << "][Debug Message] Unreadable: "
+                        << msg.reason
+                        << std::endl;
+            }
+        },
+        message
+    );
+
 }
 
 void SimulatorApp::handleResize() {

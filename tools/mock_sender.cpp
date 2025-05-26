@@ -5,7 +5,10 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <functional>
 #include <MinimalSocket/udp/UdpSocket.h>
+
+#include "../src/LED.h"
 
 struct Config {
     std::string host;
@@ -14,6 +17,24 @@ struct Config {
     int delayMs;
     int repeats;
 };
+
+inline std::vector<uint8_t> warlsMessageFor(size_t nLeds, std::function<LED(size_t)> func) {
+    std::vector<uint8_t> message{1, 255};
+    for (size_t i = 0; i < nLeds; i++) {
+        auto led = func(i);
+        message.insert(message.end(), {i, led.r, led.g, led.b});
+    }
+    return message;
+}
+
+inline std::vector<uint8_t> drgbMessageFor(size_t nLeds, std::function<LED(size_t)> func) {
+    std::vector<uint8_t> message{1, 255};
+    for (size_t i = 0; i < nLeds; i++) {
+        auto led = func(i);
+        message.insert(message.end(), {led.r, led.g, led.b});
+    }
+    return message;
+}
 
 int main() {
     std::cout << "Mock Sender: Test UDP package sending." << std::endl;
@@ -29,6 +50,11 @@ int main() {
             .delayMs = 1000,
             .repeats = 5,
     };
+
+    // some cases
+//    config.message = {
+//            warlsMessageFor(200, )
+//    };
 
     const MinimalSocket::Address remote(config.host, config.port);
     MinimalSocket::udp::Udp<true> sender(

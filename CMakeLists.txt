@@ -52,7 +52,6 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders
 
 add_executable(${PROJECT_NAME}
         src/main.cpp
-        src/UdpReceiver.cpp
         src/UdpReceiver.h
         src/SimulatorApp.cpp
         src/SimulatorApp.h
@@ -62,6 +61,7 @@ add_executable(${PROJECT_NAME}
         src/Config.h
         src/Trophy.h
         src/inputHelpers.h
+        src/UdpInterpreter.h
 )
 
 target_sources(${PROJECT_NAME} PRIVATE

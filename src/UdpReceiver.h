@@ -5,12 +5,10 @@
 #ifndef DLTROPHY_SIMULATOR_UDPRECEIVER_H
 #define DLTROPHY_SIMULATOR_UDPRECEIVER_H
 
-#include <thread>
-#include <queue>
-#include <condition_variable>
+#include <iostream>
 #include <MinimalSocket/udp/UdpSocket.h>
 
-struct Message {
+struct RawMessage {
     std::vector<int> values;
     std::string source;
 };
@@ -21,26 +19,42 @@ private:
 
     MinimalSocket::udp::Udp<false> socket;
     // <-- the "false" stands for "non-blocking"
-    const std::size_t max_message_size = 1024;
+
+    const std::size_t maxMessageSize = 1024;
     // <-- UDP message size as limited by WLED:
     // https://kno.wled.ge/interfaces/udp-realtime/
 
 public:
-    explicit UdpReceiver(int port);
+    explicit UdpReceiver(int port)
+    : port(port)
+    {
+        socket = MinimalSocket::udp::Udp<false>(
+                port,
+                MinimalSocket::AddressFamily::IP_V4
+        );
+
+        if (!socket.open()) {
+            throw std::runtime_error(std::format(
+                    "Socket cannot listen under port {0}, is it already in use?",
+                    port
+            ));
+        }
+    }
+
     ~UdpReceiver() = default;
 
-    std::optional<Message> listen() {
-        auto package = socket.receive(max_message_size);
+    std::optional<RawMessage> listen() {
+        auto package = socket.receive(maxMessageSize);
         if (!package.has_value()) {
             return std::nullopt;
         }
-        return Message{
-            .values = decodeValues(package.value()),
-            .source = to_string(package.value().sender)
+        return RawMessage{
+                .values = decodeIntegers(package.value()),
+                .source = to_string(package.value().sender)
         };
     }
 
-    static std::vector<int> decodeValues(MinimalSocket::ReceiveStringResult message) {
+    static std::vector<int> decodeIntegers(MinimalSocket::ReceiveStringResult message) {
         std::vector<int> values;
         for (char c: message.received_message) {
             auto byteValue = static_cast<uint8_t>(c);
