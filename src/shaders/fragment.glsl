@@ -222,6 +222,42 @@ float sdSphere(vec3 p, vec3 center, float radius) {
     return length(p - center) - radius;
 }
 
+float sdLineSegment(vec3 p, vec3 a, vec3 b) {
+    vec3 ap = p - a;
+    vec3 ab = b - a;
+    float t = clamp(dot(ap, ab) / dot(ab, ab), 0.0, 1.0);
+    vec3 closest = a + t * ab;
+    return length(p - closest);
+}
+
+float sdPyramidFrame(vec3 p, float h, float b) {
+    // Base vertices
+    vec3 v1 = vec3( b, 0,  b);
+    vec3 v2 = vec3(-b, 0,  b);
+    vec3 v3 = vec3(-b, 0, -b);
+    vec3 v4 = vec3( b, 0, -b);
+    vec3 apex = vec3(0, h, 0);
+
+    // Base edges
+    float d1 = sdLineSegment(p, v1, v2);
+    float d2 = sdLineSegment(p, v2, v3);
+    float d3 = sdLineSegment(p, v3, v4);
+    float d4 = sdLineSegment(p, v4, v1);
+
+    // Side edges (apex to base)
+    float d5 = sdLineSegment(p, apex, v1);
+    float d6 = sdLineSegment(p, apex, v2);
+    float d7 = sdLineSegment(p, apex, v3);
+    float d8 = sdLineSegment(p, apex, v4);
+
+    // Minimum distance to any edge
+    float frameDist = min(min(min(d1, d2), min(d3, d4)),
+    min(min(d5, d6), min(d7, d8)));
+
+    // Subtract radius for line thickness (e.g., 0.02)
+    return frameDist - 0.005;
+}
+
 mat3 pyramidRotation = rotateY(pyramidAngle + pyramidAngularVelocity * iTime);
 
 // thanks iq https://iquilezles.org/articles/distfunctions/
@@ -230,6 +266,10 @@ float sdPyramid( vec3 p )
     float h = pyramidHeight;
     p -= vec3(pyramidX, pyramidY, pyramidZ);
     p *= pyramidRotation / pyramidScale;
+
+    if (onlyPyramidFrame) {
+        return sdPyramidFrame(p, pyramidHeight, 0.5);
+    }
 
     float m2 = h*h + 0.25;
 
@@ -257,7 +297,7 @@ Marched sdScene(vec3 p) {
     sd = sdPyramid(p);
     if (sd < hit.sd) {
         hit.sd = sd;
-        hit.material = PYRAMID_MATERIAL;
+        hit.material = onlyPyramidFrame ? PYRAMID_FRAME_MATERIAL : PYRAMID_MATERIAL;
     }
 
     for (int i = 0; i < nLeds; i++) {
@@ -390,6 +430,9 @@ vec3 opaqueMaterial(Marched hit, vec3 ray) {
             g = clamp(g, 0., 1.);
             const vec3 dark = 0.3 * vec3(.2, .1, .32);
             return mix(dark, floorColor, g);
+
+        case PYRAMID_FRAME_MATERIAL:
+            return vec3(0.62, 0.0, 1.);
 
         default:
             // Ein ulkiges Orange, kann ja aber nie(TM) vorkommen.

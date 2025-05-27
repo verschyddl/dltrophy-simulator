@@ -467,7 +467,7 @@ void SimulatorApp::buildControlPanel() {
                         &state->options.accumulateForever);
         ImGui::Checkbox("No Stochastic Variation (indeed a bit nonsense)",
                         &state->options.noStochasticVariation);
-        ImGui::Checkbox("Only Pyramid Frame (not implemented yet)",
+        ImGui::Checkbox("Only Pyramid Frame (work in progress...)",
                         &state->options.onlyPyramidFrame);
     }
 
