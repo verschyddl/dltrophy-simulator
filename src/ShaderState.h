@@ -54,7 +54,7 @@ struct ShaderState {
         .camFov = 1.3,
         .camTilt = 12.3,
         .fogScaling = 0.0001,
-        .fogGrading = 1.9,
+        .fogGrading = 2.2,
         .backgroundSpin = 0.1,
         .floorSpacingX = 2.21,
         .floorSpacingZ = 5.21,

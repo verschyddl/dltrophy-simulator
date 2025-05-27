@@ -328,15 +328,15 @@ void SimulatorApp::buildControlPanel() {
     auto stop = 0.24f * panelWidth;
     ImGui::Text("Time:");
     ImGui::SameLine(stop);
-    ImGui::Text( "%8.2f sec.",
+    ImGui::Text( "%6.2f sec.",
                  shader->iTime.value);
     ImGui::Text("FPS:");
     ImGui::SameLine(stop);
-    ImGui::Text( "%8.2f",
+    ImGui::Text( "%6.2f",
                  shader->iFPS.value);
     ImGui::Text("Resolution:");
     ImGui::SameLine(stop);
-    ImGui::Text( "%4.0f x %4.0f (Offset: %.0f x %.0f)",
+    ImGui::Text( "%.0f x %.0f (Offset: %.0f x %.0f)",
                  shader->iRect.value.z,
                  shader->iRect.value.w,
                  shader->iRect.value.x,
@@ -373,12 +373,15 @@ void SimulatorApp::buildControlPanel() {
 
     if (ImGui::CollapsingHeader("Background Scenery")) {
 
+        ImGui::SliderFloat("Fog Scaling",
+                           &state->params.fogScaling,
+                           1e-4, 1e-2);
         ImGui::SliderFloat("Fog Grading",
                            &state->params.fogGrading,
-                           0.1f, 5.f);
+                           0.001f, 10.f);
         ImGui::SliderFloat("Background Spin",
                            &state->params.backgroundSpin,
-                           0.f, 100.f);
+                           0.f, 50.f);
         ImGui::SliderFloat("Synthwave Grid Thickness",
                            &state->params.floorLineWidth,
                            0.001f, 1.f);
@@ -416,6 +419,11 @@ void SimulatorApp::buildControlPanel() {
         ImGui::SliderFloat("Pyramid Angular Velocity",
                            &state->params.pyramidAngularVelocity,
                            -210.f, 210.f);
+        ImGui::SameLine();
+        if (ImGui::Button("0")) {
+            state->params.pyramidAngularVelocity = 0;
+        }
+
         ImGui::SliderFloat("Pyramid Epoxy Permittivity",
                            &state->params.epoxyPermittivity,
                            0.f, 200.f);

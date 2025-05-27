@@ -409,11 +409,11 @@ Marched traceScene(Ray ray) {
         if (r == 0) {
             direct_hit = hit;
         }
-        if (hit.sd >= traceMaxDistance) {
-            break;
-        }
         if (hit.material != PYRAMID_MATERIAL) {
             hit.color = opaqueMaterial(hit, advance(ray, hit.sd));
+            break;
+        }
+        if (hit.sd >= traceMaxDistance) {
             break;
         }
         // still here? -> hit the pyramid :) go on scattering, mr. funny boi
@@ -431,7 +431,8 @@ Marched traceScene(Ray ray) {
 }
 
 void postProcess(inout vec3 col, in vec2 uv) {
-    float rf = length(uv) * 0.8;
+    // simple vignette for now.
+    float rf = length(uv) * 0.9;
     rf = pow(rf, 4.2) + 1.;
     rf = pow(rf, -1.6);
     col *= clamp(rf, 0., 1.);
@@ -477,7 +478,8 @@ void main() {
     Ray ray = Ray(ro, rd);
     Marched hit = traceScene(ray);
 
-    col = mix(fragColor.rgb, hit.color, exp(-fogScaling * pow(hit.sd, fogGrading)));
+    float fogMixing = exp(-fogScaling * pow(abs(hit.sd), fogGrading));
+    col = mix(fragColor.rgb, hit.color, fogMixing);
 
     bool hovered = distance(iMouse.xy, gl_FragCoord.xy) < 1.;
     bool clicked = iMouse.z > 0 && hovered;
