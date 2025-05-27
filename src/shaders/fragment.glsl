@@ -35,15 +35,24 @@ layout(std140) uniform StateBuffer {
           pyramidAngle, pyramidAngularVelocity;
     float epoxyPermittivity;
     float blendPreviousMixing;
+    float traceMinDistance, traceMaxDistance;
+    int traceMaxSteps, traceMaxRecursions;
     int options;
 };
+
+//const float MAX_DIST = 500.;
+//const float MIN_DIST = 1.e-3;
+//const int MAX_STEPS = 120;
+//// Note: The Epoxy Pyramid needs Ray Tracing:
+//const int MAX_RECURSION = 8;
+//const float PYRAMID_STEP = 0.1; // unused yet
 
 #define hasOption(index) (options & (1 << (8 * index))) != 0
 
 bool showGrid = hasOption(0);
 bool accumulateForever = hasOption(1);
 bool noStochasticVariation = hasOption(2);
-bool debug = hasOption(3);
+bool onlyPyramidFrame = hasOption(3);
 
 vec3 to_vec(RGB rgb) {
     return vec3(rgb.r, rgb.g, rgb.b) / 255.;
@@ -58,6 +67,8 @@ const int MISS = -1;
 const int LED_MATERIAL = 0;
 const int FLOOR_MATERIAL = 1;
 const int PYRAMID_MATERIAL = 2;
+const int PYRAMID_FRAME_MATERIAL = 3;
+const int DEBUG_MATERIAL = 99;
 
 const vec3 borderDark = vec3(0.4);
 const vec3 borderLight = vec3(0.6);
@@ -189,22 +200,22 @@ vec3 background(vec3 rd, vec3 ld) {
     float haze = 0.3 * exp2(-5.*(abs(rd.y)-.2*dot(rd,ld)));
     float st = 3. * starnoise(rd * rotateZ(backgroundSpin * iTime)) * (1. - min(haze,1.));
     vec3 back = vec3(0.,.1,.7)
-    * exp2(-.1*abs(length(rd.xz)/rd.y))
-    * max(sign(rd.y),0.);
-    return (
-    clamp(
-    mix(back, vec3(.3,.1, .52), haze) + st
-    , 0., 1.)
-    );
+        * exp2(-.1*abs(length(rd.xz)/rd.y))
+        * max(sign(rd.y),0.);
+    return clamp(
+            mix(back, vec3(.3,.1, .52), haze) + st
+        , 0., 1.);
 }
 
 ////
 
 vec3 floorColor = vec3(0., 0.73 - 0.2 * cos(iTime), 0.94 - 0.05 * sin(0.4 * iTime));
+const vec3 floorNormal = c.yxy;
+const float floorLevel = -4.;
 
-Marched sdFloor(vec3 p, float level) {
-    float d = p.y - level;
-    return Marched(d, FLOOR_MATERIAL, c.xxx, -1, c.xyx);
+Marched sdFloor(vec3 p) {
+    float d = dot(p, floorNormal) - floorLevel;
+    return Marched(d, FLOOR_MATERIAL, c.xxx, -1, floorNormal);
 }
 
 float sdSphere(vec3 p, vec3 center, float radius) {
@@ -230,10 +241,8 @@ float sdPyramid( vec3 p )
 
     float s = max(-q.x,0.0);
     float t = clamp( (q.y-0.5*p.z)/(m2+0.25), 0.0, 1.0 );
-
     float a = m2*(q.x+s)*(q.x+s) + q.y*q.y;
     float b = m2*(q.x+0.5*t)*(q.x+0.5*t) + (q.y-m2*t)*(q.y-m2*t);
-
     float d2 = min(q.y,-q.x*m2-q.y*0.5) > 0.0 ? 0.0 : min(a,b);
 
     return sqrt( (d2+q.z*q.z)/m2 ) * sign(max(q.z,-p.y));
@@ -241,15 +250,8 @@ float sdPyramid( vec3 p )
 
 // RAY MARCHING / TRACING
 
-const float MAX_DIST = 500.;
-const float MIN_DIST = 1.e-3;
-const int MAX_STEPS = 120;
-// Note: The Epoxy Pyramid needs Ray Tracing:
-const int MAX_RECURSION = 8;
-const float PYRAMID_STEP = 0.1; // unused yet
-
 Marched sdScene(vec3 p) {
-    Marched hit = sdFloor(p, -4.);
+    Marched hit = sdFloor(p);
     float sd;
 
     sd = sdPyramid(p);
@@ -282,15 +284,37 @@ vec3 calcNormal(in vec3 p) {
     );
 }
 
+Marched analyticalHit(Ray ray) {
+    float co = dot(ray.origin, floorNormal);
+    float cd = dot(ray.dir, floorNormal);
+
+    Marched hit = Marched(1.e4, MISS, c.xxx, -1, floorNormal);
+    if (cd == 0) { // ray parallel to the floor -- can never hit
+        return hit;
+    }
+    float distance = (floorLevel - co) / cd;
+    if (distance > 0.) {
+        hit.material = FLOOR_MATERIAL;
+        hit.sd = distance;
+    }
+    return hit;
+}
+
 Marched marchScene(Ray ray) {
     Marched hit;
-    float depth = MIN_DIST;
+    float depth = traceMinDistance;
+    vec3 p;
 
-    for(int i = 0; i < MAX_STEPS; i++) {
-        hit = sdScene(advance(ray, depth));
+    for(int i = 0; i < traceMaxSteps; i++) {
+        p = advance(ray, depth);
+        hit = sdScene(p);
         depth += hit.sd;
-        if (hit.sd < MIN_DIST || depth > MAX_DIST) {
+        if (hit.sd < traceMinDistance) {
             break;
+        }
+        // behind or below the pyramid there is nothing interesting anymore
+        if (depth >= traceMaxDistance || p.y < pyramidY - traceMinDistance) {
+            return analyticalHit(ray);
         }
     }
 
@@ -348,7 +372,7 @@ void pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out 
     );
 }
 
-vec3 surfaceColor(Marched hit, vec3 ray) {
+vec3 opaqueMaterial(Marched hit, vec3 ray) {
     switch (hit.material) {
         case LED_MATERIAL:
             return to_vec(ledColor[hit.ledIndex]);
@@ -380,55 +404,29 @@ Marched traceScene(Ray ray) {
     Ray scatRay;
     int r;
 
-    // TODO: limit tracing to only the pyramid range, after that there's only the floor plane
-    // -> draw that by algebraic methods analytically!
-
-    for (r = 0; r < MAX_RECURSION; r++) {
+    for (r = 0; r < traceMaxRecursions; r++) {
         hit = marchScene(ray);
         if (r == 0) {
             direct_hit = hit;
         }
-        if (hit.sd >= MAX_DIST) {
+        if (hit.sd >= traceMaxDistance) {
             break;
         }
         if (hit.material != PYRAMID_MATERIAL) {
-            hit.color = surfaceColor(hit, advance(ray, hit.sd));
+            hit.color = opaqueMaterial(hit, advance(ray, hit.sd));
             break;
         }
-        // still here? -> hit the pyramid :) is gonne be fun.
+        // still here? -> hit the pyramid :) go on scattering, mr. funny boi
         vec3 attenuation;
         pyramidScatter(ray, hit, attenuation, scatRay);
         col *= attenuation;
         ray = scatRay;
     }
-    if (hit.sd >= MAX_DIST || r == MAX_RECURSION) {
+    if (r == traceMaxRecursions) {
+        // didn't converge. bad.
         hit.material = MISS;
-        hit.color = c.wyx;
+        hit.color = c.wyx; // some signal lilac :P
     }
-    return hit;
-
-    for (int r=0; r < MAX_RECURSION; r++) {
-        hit = marchScene(ray);
-        if (r == 0) {
-            direct_hit = hit;
-        }
-        if (hit.sd >= MAX_DIST) {
-            hit.material = MISS;
-            return hit;
-        }
-        if (hit.material != PYRAMID_MATERIAL) {
-            hit.color = surfaceColor(hit, advance(ray, hit.sd));
-            return hit;
-        }
-        // still here? -> hit the pyramid :) is gonne be fun.
-        vec3 attenuation;
-        pyramidScatter(ray, hit, attenuation, scatRay);
-        col *= attenuation;
-        ray = scatRay;
-    }
-
-    col = surfaceColor(direct_hit, advance(ray, direct_hit.sd));
-    // hit.color = mix(hit.color, col, .5);
     return hit;
 }
 
@@ -442,6 +440,17 @@ void postProcess(inout vec3 col, in vec2 uv) {
 void main() {
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;
 
+    // border frame
+    float uvX = uv.x / aspectRatio;
+    if (max(abs(uvX), abs(uv.y)) > 0.993) {
+        if (abs(uvX) >= abs(uv.y)) { // vertical frame?
+            fragColor.rgb = uvX < 0 ? borderDark : borderLight;
+        } else {
+            fragColor.rgb = uv.y > 0 ? borderDark : borderLight;
+        }
+        return;
+    }
+
     uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
     globalSeed = float(base_hash(bits))/float(0xffffffffU);
     if (!noStochasticVariation) {
@@ -451,15 +460,6 @@ void main() {
 
     fragColor = c.xxxy;
     vec3 col = fragColor.rgb;
-
-    if (max(abs(uv.x / aspectRatio), abs(uv.y)) > 0.99) { // frame ?
-        if (abs(uv.x) >= abs(uv.y)) { // vertical frame?
-            fragColor.rgb = uv.x < 0 ? borderDark : borderLight;
-        } else {
-            fragColor.rgb = uv.y > 0 ? borderDark : borderLight;
-        }
-        return;
-    }
 
     vec3 grid = draw_grid(uv);
     if (showGrid) {
@@ -494,7 +494,6 @@ void main() {
     vec4 previousImage = texture(iPreviousImage, st);
 
     if (iPass == 1) {
-        // second pass is designed universal
         col = previousImage.rgb / previousImage.a;
         postProcess(col, uv);
         fragColor = vec4(col, 1.);

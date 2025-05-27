@@ -207,9 +207,9 @@ void SimulatorApp::initializeKeyMap() {
             toggle(state->options.noStochasticVariation);
         }
     }, {
-        GLFW_KEY_D,
+        GLFW_KEY_F,
         [this](int mods) {
-            toggle(state->options.debug);
+            toggle(state->options.onlyPyramidFrame);
         }
     }};
 }
@@ -296,13 +296,13 @@ void SimulatorApp::buildControlPanel() {
             ImGuiCond_Always
     );
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 16));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 12));
     ImGui::Begin("Deadline Trophy Smiuluator", NULL, imguiFlags);
     ImGui::PopStyleVar();
 
     const int globalStyleVars = 4;
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12, 6));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 6));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12, 4));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(6, 4));
     ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 18);
 
@@ -354,14 +354,12 @@ void SimulatorApp::buildControlPanel() {
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         ImGui::PushItemWidth(0.15f * panelWidth);
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
         ImGuiHelper::SlidersVec3(
                 "Camera Origin",
                 &state->params.camX, -1.f, +1.f,
                 &state->params.camY, -1.f, +1.f,
                 &state->params.camZ, -5.f, -1.f
         );
-        ImGui::PopStyleVar();
         ImGui::PopItemWidth();
 
         ImGui::SliderFloat("Camera FOV",
@@ -430,14 +428,39 @@ void SimulatorApp::buildControlPanel() {
 
     if (ImGui::CollapsingHeader("Rendering", ImGuiTreeNodeFlags_DefaultOpen)) {
 
+        ImGui::PushItemWidth(0.24f * panelWidth);
+
+        ImGui::SliderFloat("##MinDistance",
+                           &state->params.traceMinDistance,
+                           0.001, 1.);
+        ImGui::SameLine();
+        ImGui::SliderFloat("##MaxDistance",
+                           &state->params.traceMaxDistance,
+                           1., 1000.);
+        ImGui::SameLine();
+        ImGui::Text("March Limits");
+
+        ImGui::SliderInt("##MaxSteps",
+                           &state->params.traceMaxSteps,
+                           1, 1000);
+        ImGui::SameLine();
+        ImGui::SliderInt("##MaxRecursions",
+                           &state->params.traceMaxRecursions,
+                           1, 100);
+        ImGui::SameLine();
+        ImGui::Text("Max. Steps & Recursions");
+
+        ImGui::PopItemWidth();
+
         ImGui::SliderFloat("Previous Image Blend Factor",
                            &state->params.blendPreviousMixing,
                            0.f, 1.f);
         ImGui::Checkbox("Accumulate Forever (ignores Blend Factor)",
                         &state->options.accumulateForever);
-        ImGui::Checkbox("No Stochastic Variation (indeed bit nonsense)",
+        ImGui::Checkbox("No Stochastic Variation (indeed a bit nonsense)",
                         &state->options.noStochasticVariation);
-
+        ImGui::Checkbox("Only Pyramid Frame (not implemented yet)",
+                        &state->options.onlyPyramidFrame);
     }
 
     ImGui::PopItemWidth();

@@ -20,19 +20,24 @@ struct ShaderOptions {
     bool showGrid;
     bool accumulateForever;
     bool noStochasticVariation;
-    bool debug;
+    bool onlyPyramidFrame;
 };
 
 struct Parameters {
-    // if only floats (or other 4 byte-data), this makes alignment easy
+    // if only floats / ints / other 4 byte-types, this makes alignment easy
     // therefore e.g. do not keep camera position as vec3 -> gets annoying
     float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
     float fogScaling, fogGrading, backgroundSpin;
-    float floorSpacingX, floorSpacingZ, floorLineWidth, floorExponent, floorGrading;
-    float pyramidX, pyramidY, pyramidZ, pyramidScale, pyramidHeight, pyramidAngle, pyramidAngularVelocity;
+    float floorSpacingX, floorSpacingZ,
+          floorLineWidth, floorExponent, floorGrading;
+    float pyramidX, pyramidY, pyramidZ,
+          pyramidScale, pyramidHeight,
+          pyramidAngle, pyramidAngularVelocity;
     float epoxyPermittivity;
     float blendPreviousMixing;
+    float traceMinDistance, traceMaxDistance;
+    int traceMaxSteps, traceMaxRecursions;
 };
 
 struct ShaderState {
@@ -65,12 +70,16 @@ struct ShaderState {
         .pyramidAngularVelocity = 0.,
         .epoxyPermittivity = 1.1,
         .blendPreviousMixing = 0.3,
+        .traceMinDistance = 1.e-3, // no reason to change
+        .traceMaxDistance = 60., // 100. should be enough.
+        .traceMaxSteps = 50,
+        .traceMaxRecursions = 6,
     };
     ShaderOptions options {
         .showGrid = false,
         .accumulateForever = false,
         .noStochasticVariation = false,
-        .debug = false,
+        .onlyPyramidFrame = false,
     };
 
     explicit ShaderState(Trophy* trophy):

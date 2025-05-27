@@ -8,8 +8,6 @@
 #include <functional>
 #include <MinimalSocket/udp/UdpSocket.h>
 
-#include "../src/LED.h"
-
 struct Config {
     std::string host;
     int port;
@@ -18,11 +16,18 @@ struct Config {
     int repeats;
 };
 
+struct RGB
+
 inline std::vector<uint8_t> warlsMessageFor(size_t nLeds, std::function<LED(size_t)> func) {
     std::vector<uint8_t> message{1, 255};
-    for (size_t i = 0; i < nLeds; i++) {
+    for (unsigned int i = 0; i < nLeds; i++) {
         auto led = func(i);
-        message.insert(message.end(), {i, led.r, led.g, led.b});
+        message.insert(message.end(), {
+            i,
+            led.r,
+            led.g,
+            led.b
+        });
     }
     return message;
 }

@@ -11,10 +11,10 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
-#include "glm/vec3.hpp"
-#include "glm/vec2.hpp"
-#include "glad/gl.h"
-#include "glm/vec4.hpp"
+#include <glad/gl.h>
+#include <glm/vec3.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 
 struct Trophy {
 

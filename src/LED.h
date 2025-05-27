@@ -5,12 +5,12 @@
 #ifndef DLTROPHY_SIMULATOR_LED_H
 #define DLTROPHY_SIMULATOR_LED_H
 
-#include "Trophy.h"
+#ifdef WORKAROUND_GL
+#define GLuint unsigned int
+#else
 #include <glad/gl.h>
-#include <functional>
-#include <span>
-#include <array>
-#include <cstdint>
+#endif
+
 
 struct LED {
 
@@ -45,7 +45,7 @@ public:
     [[nodiscard]]
     GLuint gray() const {
         auto w = 0.299 * r + 0.587 * g + 0.114 * b;
-        return static_cast<unsigned int>(w);
+        return static_cast<GLuint>(w);
     }
 };
 
