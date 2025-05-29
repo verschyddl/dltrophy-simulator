@@ -11,63 +11,77 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
-#include <glad/gl.h>
+#include <GL/gl.h>
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
 struct Trophy {
-
     static const GLuint N_LEDS_IN_LOGO = 106;
     static const GLuint N_LEDS_IN_BASE = 64;
     static const GLuint N_RGB_LEDS = N_LEDS_IN_LOGO + N_LEDS_IN_BASE;
     static const GLuint N_SINGLE_LEDS = 2;
     static const GLuint N_LEDS = N_RGB_LEDS + N_SINGLE_LEDS;
 
-    std::array<glm::vec4, N_LEDS> position;
+    int logoStartIndex = 0;
+    int baseStartIndex = N_LEDS_IN_LOGO;
+    int floorLedIndex = N_LEDS - 2;
+    int backLedIndex = N_LEDS - 1;
 
-    std::array<bool, N_LEDS> is_single_color;
-    std::array<bool, N_LEDS> is_logo;
-    std::array<bool, N_LEDS> is_base;
+    std::array<glm::vec4, N_LEDS> position{};
 
-    static constexpr glm::vec3 logo_center = {0.1f, 0.4f, 0.f};
-    static constexpr float logo_width = 1.2f;
-    static constexpr float logo_height = 0.5f;
-    static constexpr glm::vec3 base_center = {0.f, -.4f, 0.f};
-    static constexpr float base_size = 1.3f;
+    std::array<bool, N_LEDS> isSingleColor{};
+    std::array<bool, N_LEDS> isLogo{};
+    std::array<bool, N_LEDS> isBase{};
 
-    glm::vec3 pos_min, pos_max;
+    glm::vec3 logoCenter = {0.1f, 0.0f, 0.f};
+    glm::vec2 logoSize = {0.5f, 0.2f};
+    glm::vec3 baseCenter = {0.f, -.3f, 0.f};
+    float baseSize = 1.0f;
+    glm::vec3 backLedPos{-0.05f, -0.1f, 0.02f};
+    glm::vec3 floorLedPos{0.0f, 0.0f, 0.f};
+
+    glm::vec3 posMin{}, posMax{};
 
     Trophy() {
+        initialize();
+    }
+
+    void initialize() {
+        posMin = {0, 0, 0};
+        posMax = {0, 0, 0};
+
         for (int i = 0; i < N_LEDS; i++) {
-            is_single_color[i] = i >= N_RGB_LEDS;
-            is_logo[i] = i < N_LEDS_IN_LOGO;
-            is_base[i] = !is_logo[i] && i < N_RGB_LEDS;
+
+            isLogo[i] = i >= logoStartIndex && i < logoStartIndex + N_LEDS_IN_LOGO;
+            isBase[i] = i >= baseStartIndex && i < baseStartIndex + N_LEDS_IN_BASE;
+            isSingleColor[i] = !isLogo[i] && !isBase[i];
 
             glm::vec2 relative;
             glm::vec3 absolute;
 
-            if (is_logo[i]) {
-                relative = parse_logo_order(i);
-                absolute = glm::vec3(
-                        logo_center.x + logo_width * relative.x,
-                        logo_center.y + logo_height * relative.y,
-                        logo_center.z
-                );
+            if (isLogo[i]) {
+                relative = parse_logo_order(i - logoStartIndex);
+                absolute = glm::vec3{
+                    logoCenter.x + logoSize.x * relative.x,
+                    logoCenter.y + logoSize.y * relative.y,
+                    logoCenter.z
+                };
             }
-            else if (is_base[i]) {
-                relative = calc_base_order(i - N_LEDS_IN_LOGO);
-                absolute = glm::vec3(
-                        base_center.x + base_size * relative.x,
-                        base_center.y,
-                        base_center.z + base_size * relative.y
-                );
+            else if (isBase[i]) {
+                relative = calc_base_order(i - baseStartIndex);
+                absolute = glm::vec3{
+                    baseCenter.x + baseSize * relative.x,
+                    baseCenter.y,
+                    baseCenter.z + baseSize * relative.y
+                };
             }
-            else if (i == N_LEDS - 2) {
-                // is the first one the back light, maybe? last one zen se floor?
-                absolute = i == N_LEDS - 2
-                        ? glm::vec3(-0.05f, -0.1f, 0.02f)
-                        : glm::vec3(0.0f, 0.0f, base_center.z);
+            else if (i == floorLedIndex) {
+                // floorLedPos might be taken from baseCenter.z, maybe.
+                absolute = floorLedPos;
+            }
+            else if (i == backLedIndex) {
+                absolute = backLedPos;
             }
 
             position[i] = glm::vec4{
@@ -77,12 +91,12 @@ struct Trophy {
                 0.f
             };
 
-            pos_min.x = std::min(pos_min.x, position[i].x);
-            pos_min.y = std::min(pos_min.y, position[i].y);
-            pos_min.z = std::min(pos_min.z, position[i].z);
-            pos_max.x = std::max(pos_max.x, position[i].x);
-            pos_max.y = std::max(pos_max.y, position[i].y);
-            pos_max.z = std::max(pos_max.z, position[i].z);
+            posMin.x = std::min(posMin.x, position[i].x);
+            posMin.y = std::min(posMin.y, position[i].y);
+            posMin.z = std::min(posMin.z, position[i].z);
+            posMax.x = std::max(posMax.x, position[i].x);
+            posMax.y = std::max(posMax.y, position[i].y);
+            posMax.z = std::max(posMax.z, position[i].z);
         }
     }
 
@@ -148,17 +162,17 @@ struct Trophy {
         }
     }
 
-    GLsizeiptr alignedTotalSize() {
+    size_t alignedTotalSize() {
         return alignedSizeOfNumber() + alignedSizeOfPositions();
     }
 
-    GLsizeiptr alignedSizeOfNumber() {
+    size_t alignedSizeOfNumber() {
         // first element is N_LEDS as uint -> 4 bytes -> too small.
         // from then on, the offset of an array must be a multiple of its base data size
         return sizeof(position[0]);
     }
     
-    GLsizeiptr alignedSizeOfPositions() {
+    size_t alignedSizeOfPositions() {
         // position is now vec4 to match the alignment
         return position.size() * sizeof(position[0]);
     }
@@ -184,9 +198,9 @@ struct Trophy {
         }
 
         std:: cout << "-> Ranges: " << std::endl
-                   << "   X [" << pos_min.x << ", " << pos_max.x << "]" << std::endl
-                   << "   Y [" << pos_min.y << ", " << pos_max.y << "]" << std::endl
-                   << "   Z [" << pos_min.z << ", " << pos_max.z << "]" << std::endl;
+                   << "   X [" << posMin.x << ", " << posMax.x << "]" << std::endl
+                   << "   Y [" << posMin.y << ", " << posMax.y << "]" << std::endl
+                   << "   Z [" << posMin.z << ", " << posMax.z << "]" << std::endl;
         std::cout << "==================================" << std::endl;
     }
 

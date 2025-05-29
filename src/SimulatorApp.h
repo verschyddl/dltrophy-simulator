@@ -55,7 +55,7 @@ private:
     float currentFps;
     void handleTime();
 
-    static const int FPS_SAMPLES = 30;
+    static const int FPS_SAMPLES = 10;
     float lastFps[FPS_SAMPLES];
     float averageFps;
     float calcAverageFps();

@@ -152,8 +152,8 @@ void SimulatorApp::handleTime() {
 
 float SimulatorApp::calcAverageFps() {
     float sum = 0.;
-    for (int f = 0; f < FPS_SAMPLES; f++) {
-        sum += lastFps[f];
+    for (float lastFp : lastFps) {
+        sum += lastFp;
     }
     return sum / static_cast<float>(FPS_SAMPLES);
 }
@@ -323,6 +323,12 @@ void SimulatorApp::buildControlPanel() {
         ImGui::Text(reloaded.first.c_str());
     } else {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 1.0f, 1.0f), reloaded.first.c_str());
+
+        ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::HSV(210.f, 0.6f, 0.7f));
+        ImGui::TextWrapped(reloaded.second.c_str());
+        ImGui::PopStyleColor();
+
+        ImGui::Spacing();
     }
 
     auto stop = 0.24f * panelWidth;
@@ -342,25 +348,55 @@ void SimulatorApp::buildControlPanel() {
                  shader->iRect.value.x,
                  shader->iRect.value.y);
 
-    if (ImGui::Button("Randomize LED colors")) {
+    if (ImGui::Button("Randomize LEDs")) {
         state->randomize();
     }    ImGui::SameLine();
     if (ImGui::Button("Print Debug Stuff")) {
         printDebug();
     }
+    if (ImGui::Button("Save State")) {
+        config.store(window, state);
+    }
 
     ImGui::PushItemWidth(0.32f * panelWidth);
 
+    if (ImGui::CollapsingHeader("Trophy Definition")) {
+        ImGuiHelper::SlidersVec3(
+                "Logo Center",
+                &state->trophy->logoCenter.x, -1.f, +1.f,
+                &state->trophy->logoCenter.y, -1.f, +1.f,
+                &state->trophy->logoCenter.z, -1.f, +1.f,
+                0.15f * panelWidth
+        );
+        ImGuiHelper::SlidersVec3(
+                "Sizes",
+                &state->trophy->logoSize.x, -2.f, +2.f,
+                &state->trophy->logoSize.y, -2.f, +2.f,
+                &state->trophy->baseSize, -2.f, +2.f,
+                0.15f * panelWidth
+        );
+        ImGuiHelper::SlidersVec3(
+                "Base Center",
+                &state->trophy->baseCenter.x, -1.f, +1.f,
+                &state->trophy->baseCenter.y, -1.f, +1.f,
+                &state->trophy->baseCenter.z, -1.f, +1.f,
+                0.15f * panelWidth
+        );
+
+        if (ImGui::Button("Apply (might be expensive)")) {
+            shader->updateLedPositions();
+        }
+    }
+
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-        ImGui::PushItemWidth(0.15f * panelWidth);
         ImGuiHelper::SlidersVec3(
                 "Camera Origin",
                 &state->params.camX, -1.f, +1.f,
                 &state->params.camY, -1.f, +1.f,
-                &state->params.camZ, -5.f, -1.f
+                &state->params.camZ, -5.f, -1.f,
+                0.15f * panelWidth
         );
-        ImGui::PopItemWidth();
 
         ImGui::SliderFloat("Camera FOV",
                            &state->params.camFov,
@@ -382,6 +418,9 @@ void SimulatorApp::buildControlPanel() {
         ImGui::SliderFloat("Background Spin",
                            &state->params.backgroundSpin,
                            0.f, 50.f);
+        ImGui::SliderFloat("Synthwave Floor Level",
+                           &state->params.floorLevel,
+                           -10.f, 5.f);
         ImGui::SliderFloat("Synthwave Grid Thickness",
                            &state->params.floorLineWidth,
                            0.001f, 1.f);
@@ -421,6 +460,7 @@ void SimulatorApp::buildControlPanel() {
                            -210.f, 210.f);
         ImGui::SameLine();
         if (ImGui::Button("0")) {
+            state->params.pyramidAngle = 0;
             state->params.pyramidAngularVelocity = 0;
         }
 
@@ -448,15 +488,15 @@ void SimulatorApp::buildControlPanel() {
         ImGui::SameLine();
         ImGui::Text("March Limits");
 
-        ImGui::SliderInt("##MaxSteps",
-                           &state->params.traceMaxSteps,
-                           1, 1000);
-        ImGui::SameLine();
+//        ImGui::SliderInt("##MaxSteps",
+//                           &state->params.traceMaxSteps,
+//                           1, 1000);
+//        ImGui::SameLine();
         ImGui::SliderInt("##MaxRecursions",
                            &state->params.traceMaxRecursions,
                            1, 100);
         ImGui::SameLine();
-        ImGui::Text("Max. Steps & Recursions");
+        ImGui::Text("Max. Recursions");
 
         ImGui::PopItemWidth();
 
@@ -472,13 +512,6 @@ void SimulatorApp::buildControlPanel() {
     }
 
     ImGui::PopItemWidth();
-
-    if (!reloaded.second.empty()) {
-        ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::HSV(210.f, 0.6f, 0.7f));
-        ImGui::TextWrapped(reloaded.second.c_str());
-        ImGui::PopStyleColor();
-    }
 
     ImGui::PopStyleVar(globalStyleVars);
     ImGui::End();

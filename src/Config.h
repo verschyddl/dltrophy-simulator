@@ -6,9 +6,11 @@
 #define DLTROPHY_SIMULATOR_CONFIG_H
 
 #include <string>
+#include <filesystem>
 #include <GLFW/glfw3.h>
 #include <glm/vec4.hpp>
-#include <filesystem>
+#include <nlohmann/json.hpp>
+#include "ShaderState.h"
 
 struct Size {
     int width;
@@ -58,7 +60,7 @@ public:
     Config(int argc, char* argv[]);
 
     void restore(GLFWwindow* window);
-    void store(GLFWwindow* window) const;
+    void store(GLFWwindow* window, ShaderState* state = nullptr) const;
 
     [[nodiscard]]
     bool wasRead() const { return didRead; };
@@ -81,11 +83,12 @@ public:
     inline float relativeRemainingWidth() const {
         // assumes that .x is the left margin - might change
         const float margin = shaderView.x;
-        return 1. - shaderView.width - shaderView.x - margin;
+        return 1.f - shaderView.width - shaderView.x - margin;
     }
 
 private:
     bool tryReadFile();
+    std::optional<nlohmann::json> tryReadJson() const;
 
     bool didRead = false;
     std::optional<Coord> windowPos = std::nullopt;

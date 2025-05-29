@@ -29,7 +29,7 @@ struct Parameters {
     float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
     float fogScaling, fogGrading, backgroundSpin;
-    float floorSpacingX, floorSpacingZ,
+    float floorLevel, floorSpacingX, floorSpacingZ,
           floorLineWidth, floorExponent, floorGrading;
     float pyramidX, pyramidY, pyramidZ,
           pyramidScale, pyramidHeight,
@@ -46,7 +46,7 @@ struct ShaderState {
     std::vector<LED> leds;
 
     Parameters params {
-        .ledSize = 0.022,
+        .ledSize = 0.015,
         .ledGlow = 0.8,
         .camX = 0.,
         .camY = 0.17,
@@ -56,6 +56,7 @@ struct ShaderState {
         .fogScaling = 0.0001,
         .fogGrading = 2.2,
         .backgroundSpin = 0.1,
+        .floorLevel = -4.,
         .floorSpacingX = 2.21,
         .floorSpacingZ = 5.21,
         .floorLineWidth = .05,
@@ -68,18 +69,18 @@ struct ShaderState {
         .pyramidHeight = 0.85,
         .pyramidAngle = -10.,
         .pyramidAngularVelocity = 0.,
-        .epoxyPermittivity = 1.1,
-        .blendPreviousMixing = 0.3,
+        .epoxyPermittivity = 1.6,
+        .blendPreviousMixing = 0.35,
         .traceMinDistance = 1.e-3, // no reason to change
         .traceMaxDistance = 60., // 100. should be enough.
-        .traceMaxSteps = 50,
+        .traceMaxSteps = 40,
         .traceMaxRecursions = 6,
     };
     ShaderOptions options {
         .showGrid = false,
         .accumulateForever = false,
         .noStochasticVariation = false,
-        .onlyPyramidFrame = false,
+        .onlyPyramidFrame = true,
     };
 
     explicit ShaderState(Trophy* trophy):
@@ -92,13 +93,13 @@ struct ShaderState {
             }
         };
 
-    GLsizeiptr alignedTotalSize() {
+    size_t alignedTotalSize() {
         return alignedSizeForLeds()
                 + sizeof(params)
                 + sizeof(options);
     }
 
-    GLsizeiptr alignedSizeForLeds() {
+    size_t alignedSizeForLeds() {
         return leds.size() * sizeof(leds[0]);
     }
 
@@ -108,7 +109,7 @@ struct ShaderState {
                     std::format("Trophy has no LED at index {0}", index)
             );
         }
-        if (trophy->is_single_color[index]) {
+        if (trophy->isSingleColor[index]) {
             leds[index].set(led.gray());
         } else {
             leds[index].set(led);
@@ -144,5 +145,6 @@ struct ShaderState {
         }
     }
 };
+
 
 #endif //DLTROPHY_SIMULATOR_SHADERSTATE_H

@@ -50,8 +50,8 @@ void TrophyShader::teardown() {
     glDeleteBuffers(1, &vertexBufferObject);
     glDeleteBuffers(1, &stateBufferId);
     glDeleteBuffers(1, &definitionBufferId);
-    glDeleteFramebuffers(framebuffers.object.size(), &framebuffers.object[0]);
-    glDeleteTextures(framebuffers.texture.size(), &framebuffers.texture[0]);
+    glDeleteFramebuffers(feedbackFramebuffers.object.size(), &feedbackFramebuffers.object[0]);
+    glDeleteTextures(feedbackFramebuffers.texture.size(), &feedbackFramebuffers.texture[0]);
 }
 
 void TrophyShader::onRectChange(Size resolution, const Config& config) {
@@ -207,44 +207,57 @@ void TrophyShader::initVertices() {
     glEnableVertexAttribArray(positionAttributeLocation);
 }
 
-void TrophyShader::initFramebuffers(const Rect& rect) {
-    const int n = framebuffers.object.size();
-    glDeleteFramebuffers(n, &framebuffers.object[0]);
-    glDeleteTextures(n, &framebuffers.texture[0]);
+static inline void attachFramebufferTexture(GLuint fbo, GLuint textureId, Rect rect, GLuint colorAttachment) {
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // the resolution must include the origin shift, I suppose.
+    glTexImage2D(GL_TEXTURE_2D,
+                 0,
+                 GL_RGBA32F,
+                 rect.width + rect.x,
+                 rect.height + rect.y,
+                 0,
+                 GL_RGBA,
+                 GL_FLOAT,
+                 nullptr);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+                           GL_COLOR_ATTACHMENT0,
+                           GL_TEXTURE_2D,
+                           textureId,
+                           0);
+}
 
-    glGenTextures(n, &framebuffers.texture[0]);
-    glGenFramebuffers(n, &framebuffers.object[0]);
+void TrophyShader::initFramebuffers(const Rect& rect) {
+    // First the two for the Feedback Ping-Pong:
+    const int n = feedbackFramebuffers.object.size();
+    glDeleteFramebuffers(n, &feedbackFramebuffers.object[0]);
+    glDeleteTextures(n, &feedbackFramebuffers.texture[0]);
+    glGenTextures(n, &feedbackFramebuffers.texture[0]);
+    glGenFramebuffers(n, &feedbackFramebuffers.object[0]);
 
     for (int i = 0; i < n; i++) {
-        glBindTexture(GL_TEXTURE_2D, framebuffers.texture[i]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        // the resolution must include the origin shift, I suppose to have found out
-        glTexImage2D(GL_TEXTURE_2D,
-                     0,
-                     GL_RGBA32F,
-                     rect.width + rect.x,
-                     rect.height + rect.y,
-                     0,
-                     GL_RGBA,
-                     GL_FLOAT,
-                     nullptr);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffers.object[i]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER,
-                               GL_COLOR_ATTACHMENT0, // is right to keep at 0... right?
-                               GL_TEXTURE_2D,
-                               framebuffers.texture[i],
-                               0);
-        framebuffers.status[i] = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        framebuffers.assertStatus(i);
-
-        // ... is that helpful?
-//        glViewport(rect.x, rect.y, rect.width, rect.height);
-//        glClear(GL_COLOR_BUFFER_BIT);
+        attachFramebufferTexture(feedbackFramebuffers.object[i],
+                                 feedbackFramebuffers.texture[i],
+                                 rect,
+                                 GL_COLOR_ATTACHMENT0);
+        feedbackFramebuffers.status[i] = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        feedbackFramebuffers.assertStatus(i);
     }
+
+    // Now the one for the Bloom Effect:
+    glDeleteFramebuffers(1, &bloomFramebuffer.object);
+    glDeleteTextures(1, &bloomFramebuffer.texture);
+    glGenTextures(1, &bloomFramebuffer.texture);
+    glGenFramebuffers(1, &bloomFramebuffer.object);
+
+    attachFramebufferTexture(bloomFramebuffer.object,
+                             bloomFramebuffer.texture,
+                             rect,
+                             GL_COLOR_ATTACHMENT1);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -254,6 +267,9 @@ void TrophyShader::initUniformBuffers() {
     // pass LEDs as Uniform Buffers, but separated in
     // - the Definition (is set once)
     // - the RGB State (is updated frequently)
+
+    glDeleteBuffers(1, &stateBufferId);
+    glDeleteBuffers(1, &definitionBufferId);
 
     GLuint bufferId[2];
     glGenBuffers(2, &bufferId[0]);
@@ -276,11 +292,7 @@ void TrophyShader::initUniformBuffers() {
                     sizeof(state->nLeds),
                     &state->nLeds
     );
-    glBufferSubData(GL_UNIFORM_BUFFER,
-                    state->trophy->alignedSizeOfNumber(),
-                    state->trophy->alignedSizeOfPositions(),
-                    state->trophy->position.data()
-    );
+    updateLedPositions();
 
     bindingPoint++;
     blockIndex = glGetUniformBlockIndex(program, "StateBuffer");
@@ -292,6 +304,19 @@ void TrophyShader::initUniformBuffers() {
                  nullptr,
                  GL_DYNAMIC_DRAW);
 
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+void TrophyShader::updateLedPositions() const {
+    // if you changed the public fields of state->trophy,
+    // this will publish the changes into the uniform buffer.
+
+    glBindBuffer(GL_UNIFORM_BUFFER, definitionBufferId);
+    glBufferSubData(GL_UNIFORM_BUFFER,
+                    state->trophy->alignedSizeOfNumber(),
+                    state->trophy->alignedSizeOfPositions(),
+                    state->trophy->position.data()
+    );
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
@@ -335,11 +360,11 @@ void TrophyShader::render() {
     fillStateUniformBuffer(state);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    auto order = framebuffers.getOrderAndAdvance();
+    auto order = feedbackFramebuffers.getOrderAndAdvance();
 
     iPass.set(0);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffers.object[order.first]);
-    glBindTexture(GL_TEXTURE_2D, framebuffers.texture[order.second]);
+    glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.object[order.first]);
+    glBindTexture(GL_TEXTURE_2D, feedbackFramebuffers.texture[order.second]);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     iPass.set(1);

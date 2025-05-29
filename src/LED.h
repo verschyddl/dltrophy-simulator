@@ -8,7 +8,7 @@
 #ifdef WORKAROUND_GL
 #define GLuint unsigned int
 #else
-#include <glad/gl.h>
+#include <GL/gl.h>
 #endif
 
 

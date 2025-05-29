@@ -11,6 +11,7 @@ uniform vec4 iMouse;
 uniform int iFrame;
 uniform int iPass;
 uniform sampler2D iPreviousImage;
+uniform sampler2D iBloomImage;
 
 const int nLeds = 172;
 
@@ -28,7 +29,7 @@ layout(std140) uniform StateBuffer {
     float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
     float fogScaling, fogGrading, backgroundSpin;
-    float floorSpacingX, floorSpacingZ,
+    float floorLevel, floorSpacingX, floorSpacingZ,
           floorLineWidth, floorExponent, floorGrading;
     float pyramidX, pyramidY, pyramidZ,
           pyramidScale, pyramidHeight,
@@ -211,7 +212,6 @@ vec3 background(vec3 rd, vec3 ld) {
 
 vec3 floorColor = vec3(0., 0.73 - 0.2 * cos(iTime), 0.94 - 0.05 * sin(0.4 * iTime));
 const vec3 floorNormal = c.yxy;
-const float floorLevel = -4.;
 
 Marched sdFloor(vec3 p) {
     float d = dot(p, floorNormal) - floorLevel;
@@ -259,6 +259,7 @@ float sdPyramidFrame(vec3 p, float h, float b) {
 }
 
 mat3 pyramidRotation = rotateY(pyramidAngle + pyramidAngularVelocity * iTime);
+mat3 pyramidCounterRotation = rotateY(-pyramidAngle - pyramidAngularVelocity * iTime);
 
 // thanks iq https://iquilezles.org/articles/distfunctions/
 float sdPyramid( vec3 p )
@@ -300,9 +301,9 @@ Marched sdScene(vec3 p) {
         hit.material = onlyPyramidFrame ? PYRAMID_FRAME_MATERIAL : PYRAMID_MATERIAL;
     }
 
+    p *= pyramidRotation;
     for (int i = 0; i < nLeds; i++) {
-        vec3 center = pyramidRotation * ledPosition[i].xyz;
-        sd = sdSphere(p, center, ledSize);
+        sd = sdSphere(p, ledPosition[i].xyz, ledSize);
         if (sd < hit.sd) {
             hit.sd = sd;
             hit.ledIndex = i;
@@ -479,6 +480,11 @@ void postProcess(inout vec3 col, in vec2 uv) {
     rf = pow(rf, 4.2) + 1.;
     rf = pow(rf, -1.6);
     col *= clamp(rf, 0., 1.);
+
+    // gamma grading
+    // col = pow(col, vec3(1.4));
+    // gain
+    // col = col * 4.0/(2.5 + col);
 }
 
 void main() {
@@ -495,13 +501,6 @@ void main() {
         return;
     }
 
-    uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
-    globalSeed = float(base_hash(bits))/float(0xffffffffU);
-    if (!noStochasticVariation) {
-        globalSeed += iTime;
-        uv += hash2(globalSeed) / iResolution;
-    }
-
     fragColor = c.xxxy;
     vec3 col = fragColor.rgb;
 
@@ -510,17 +509,26 @@ void main() {
         fragColor.rgb = 0.5 * grid;
     }
 
+    uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
+    globalSeed = float(base_hash(bits))/float(0xffffffffU);
+    if (!noStochasticVariation) {
+        globalSeed += iTime;
+        uv += hash2(globalSeed) / iResolution;
+    }
+
     vec3 lightDir = normalize(vec3(0,.125+.05*sin(.1*iTime),1));
-
     vec3 ro = vec3(camX, camY, camZ);
-    vec3 rd = normalize(vec3(uv, camFov));
-    rd *= rotateX(camTilt);
+    vec3 rd;
+    Ray ray;
+    Marched hit;
 
+    rd = normalize(vec3(uv, camFov));
+    rd *= rotateX(camTilt);
     fragColor.rgb = background(rd, lightDir);
 
-    Ray ray = Ray(ro, rd);
-    Marched hit = traceScene(ray);
-
+    col = c.yyy;
+    ray = Ray(ro, rd);
+    hit = traceScene(ray);
     float fogMixing = exp(-fogScaling * pow(abs(hit.sd), fogGrading));
     col = mix(fragColor.rgb, hit.color, fogMixing);
 
@@ -553,6 +561,6 @@ void main() {
         return;
     }
 
-    fragColor.rgb = mix(previousImage.rgb, fragColor.rgb, blendPreviousMixing);
+    fragColor.rgb = mix(fragColor.rgb, previousImage.rgb, blendPreviousMixing);
     fragColor.a = 1.;
 }

@@ -4,13 +4,31 @@
 
 #include <fstream>
 #include <format>
-#include <nlohmann/json.hpp>
 #include <iostream>
 #include <getopt.h>
 #include "Config.h"
 #include "FileHelper.h"
 
 using nlohmann::json;
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+        ShaderOptions,
+        showGrid, accumulateForever, noStochasticVariation, onlyPyramidFrame
+    )
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+        Parameters,
+        ledSize, ledGlow, camX, camY, camZ, camFov, camTilt,
+        fogScaling, fogGrading, backgroundSpin,
+        floorLevel, floorSpacingX, floorSpacingZ,
+        floorLineWidth, floorExponent, floorGrading,
+        pyramidX, pyramidY, pyramidZ,
+        pyramidScale, pyramidHeight,
+        pyramidAngle, pyramidAngularVelocity,
+        epoxyPermittivity, blendPreviousMixing,
+        traceMinDistance, traceMaxDistance,
+        traceMaxSteps, traceMaxRecursions
+    )
 
 inline void overwrite_if_path_exists(int opt, int targetOpt, std::string& target) {
     if (opt != targetOpt) {
@@ -69,17 +87,24 @@ void Config::restore(GLFWwindow* window) {
     glfwSetWindowSize(window, rect.width, rect.height);
 }
 
+std::optional<json> Config::tryReadJson() const {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return std::nullopt;
+    }
+    json result;
+    file >> result;
+    return result;
+}
+
 bool Config::tryReadFile() {
     try {
-        std::ifstream file(path);
-        if (!file.is_open()) {
+        std::optional<json> j = tryReadJson();
+        if (!j.has_value()) {
             return false;
         }
 
-        json j;
-        file >> j;
-
-        json jWindow = j["window"];
+        json jWindow = (*j)["window"];
         if (jWindow.is_object()) {
             windowSize.width = jWindow.value(
                     "width",
@@ -95,7 +120,7 @@ bool Config::tryReadFile() {
             });
         }
 
-        json jView = j["view"];
+        json jView = (*j)["view"];
         if (jView.is_object()) {
             shaderView.x = jView.value("x", shaderView.x);
             shaderView.y = jView.value("y", shaderView.y);
@@ -103,7 +128,7 @@ bool Config::tryReadFile() {
             shaderView.height = jView.value("height", shaderView.height);
         }
 
-        json jShaders = j["shaders"];
+        json jShaders = (*j)["shaders"];
         if (jShaders.is_object()) {
             customVertexShaderPath = jShaders.value("vertex", "");
             customFragmentShaderPath = jShaders.value("fragment", "");
@@ -118,27 +143,48 @@ bool Config::tryReadFile() {
     return false;
 }
 
-void Config::store(GLFWwindow* window) const {
+void Config::store(GLFWwindow* window, ShaderState* state) const {
+    json j = tryReadJson().value_or(json::object());
     auto rect = Rect::query(window);
-    json j = {
-            {"window", {
-                {"x", rect.x},
-                {"y", rect.y},
-                {"width", rect.width},
-                {"height", rect.height}
-            }},
-            {"view", {
-               {"x", shaderView.x},
-               {"y", shaderView.y},
-               {"width", shaderView.width},
-               {"height", shaderView.height},
-            }},
-            {"shaders", {
-               {"vertex", customVertexShaderPath},
-               {"fragment", customFragmentShaderPath},
-               {"reload", hotReloadShaders}
-            }},
+    j["window"] = {
+        {"x", rect.x},
+        {"y", rect.y},
+        {"width", rect.width},
+        {"height", rect.height}
     };
+    j["view"] = {
+       {"x", shaderView.x},
+       {"y", shaderView.y},
+       {"width", shaderView.width},
+       {"height", shaderView.height},
+    };
+    j["shaders"] = {
+       {"vertex", customVertexShaderPath},
+       {"fragment", customFragmentShaderPath},
+       {"reload", hotReloadShaders}
+    };
+
+    if (state != nullptr) {
+        j["params"] = state->params;
+        j["options"] = state->options;
+        j["trophy"] = {
+            {"logo", {
+                 {"x", state->trophy->logoCenter.x},
+                 {"y", state->trophy->logoCenter.y},
+                 {"z", state->trophy->logoCenter.z},
+                 {"width", state->trophy->logoSize.x},
+                 {"height", state->trophy->logoSize.y},
+                 {"startIndex", state->trophy->logoStartIndex},
+            }},
+            {"base", {
+                 {"x", state->trophy->baseCenter.x},
+                 {"y", state->trophy->baseCenter.y},
+                 {"z", state->trophy->baseCenter.z},
+                 {"size", state->trophy->baseSize},
+                 {"startIndex", state->trophy->baseStartIndex},
+            }},
+        };
+    }
 
     try {
         std::ofstream file(path);

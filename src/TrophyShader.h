@@ -41,7 +41,8 @@ private:
     GLuint definitionBufferId = 0;
     void initUniformBuffers();
 
-    FramebufferPingPong framebuffers;
+    FramebufferPingPong feedbackFramebuffers;
+    Framebuffer bloomFramebuffer;
     void initFramebuffers(const Rect& rect);
 
 public:
@@ -68,6 +69,9 @@ public:
     Uniform<int> iPass = Uniform<int>("iPass");
     Uniform<glm::vec4> iMouse = Uniform<glm::vec4>("iMouse");
     Uniform<int> iPreviousImage = Uniform<int>("iPreviousImage");
+    Uniform<int> iBloomImage = Uniform<int>("iBloomImage");
+
+    void updateLedPositions() const;
 };
 
 #endif //DLTROPHY_SIMULATOR_TROPHYSHADER_H

@@ -148,6 +148,34 @@ public:
     }
 };
 
+struct Framebuffer {
+    GLuint object;
+    GLuint texture;
+    GLenum status;
+
+    void assertStatus(const std::string& label) const {
+        if (status != GL_FRAMEBUFFER_COMPLETE) {
+            throw std::runtime_error(std::format(
+                    "Error in Framebuffer \"{}\": {} ({})",
+                    label, StatusMessages.at(status), status
+            ));
+        }
+    }
+
+    static inline const std::map<GLenum, std::string> StatusMessages = {
+            {GL_FRAMEBUFFER_COMPLETE, "Framebuffer complete"},
+            {GL_FRAMEBUFFER_UNDEFINED, "Framebuffer undefined"},
+            {GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT, "Framebuffer incomplete attachment"},
+            {GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT, "Framebuffer incomplete missing attachment"},
+            {GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER, "Framebuffer incomplete draw buffer"},
+            {GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER, "Framebuffer incomplete read buffer"},
+            {GL_FRAMEBUFFER_UNSUPPORTED, "Framebuffer unsupported"},
+            {GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE, "Framebuffer incomplete multisample"},
+            {GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS, "Framebuffer incomplete layer targets"}
+    };
+
+};
+
 struct FramebufferPingPong {
     static const int N = 2;
     std::array<GLuint, N> object{};
@@ -167,24 +195,11 @@ struct FramebufferPingPong {
     void assertStatus(int i) const {
         if (status[i] != GL_FRAMEBUFFER_COMPLETE) {
             throw std::runtime_error(std::format(
-                    "Error in Framebuffer {}: {} ({})",
-                    i, statusMessages.at(status[i]), status[i]
+                    "Error in Ping Pong Framebuffer {}: {} ({})",
+                    i, Framebuffer::StatusMessages.at(status[i]), status[i]
             ));
         }
     }
-
-    static inline const std::map<GLenum, std::string> statusMessages = {
-            {GL_FRAMEBUFFER_COMPLETE, "Framebuffer complete"},
-            {GL_FRAMEBUFFER_UNDEFINED, "Framebuffer undefined"},
-            {GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT, "Framebuffer incomplete attachment"},
-            {GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT, "Framebuffer incomplete missing attachment"},
-            {GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER, "Framebuffer incomplete draw buffer"},
-            {GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER, "Framebuffer incomplete read buffer"},
-            {GL_FRAMEBUFFER_UNSUPPORTED, "Framebuffer unsupported"},
-            {GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE, "Framebuffer incomplete multisample"},
-            {GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS, "Framebuffer incomplete layer targets"}
-    };
-
 };
 
 #endif //DLTROPHY_SIMULATOR_SHADERHELPERS_H
