@@ -93,14 +93,14 @@ struct ShaderState {
             }
         };
 
-    size_t alignedTotalSize() {
+    GLsizei alignedTotalSize() {
         return alignedSizeForLeds()
                 + sizeof(params)
                 + sizeof(options);
     }
 
-    size_t alignedSizeForLeds() {
-        return leds.size() * sizeof(leds[0]);
+    GLsizei alignedSizeForLeds() {
+        return static_cast<GLsizei>(leds.size()) * sizeof(leds[0]);
     }
 
     void set(size_t index, LED led) {

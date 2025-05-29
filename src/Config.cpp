@@ -58,7 +58,7 @@ Config::Config(int argc, char **argv) {
     }
 
     path = std::filesystem::path(configFilename);
-    didRead = tryReadFile();
+    tryReadFile();
 
     if (!overwriteVertexShaderPath.empty()) {
         customVertexShaderPath = overwriteVertexShaderPath;
@@ -99,12 +99,12 @@ std::optional<json> Config::tryReadJson() const {
 
 bool Config::tryReadFile() {
     try {
-        std::optional<json> j = tryReadJson();
-        if (!j.has_value()) {
+        currentJson = tryReadJson();
+        if (!currentJson.has_value()) {
             return false;
         }
 
-        json jWindow = (*j)["window"];
+        json jWindow = (*currentJson)["window"];
         if (jWindow.is_object()) {
             windowSize.width = jWindow.value(
                     "width",
@@ -120,7 +120,7 @@ bool Config::tryReadFile() {
             });
         }
 
-        json jView = (*j)["view"];
+        json jView = (*currentJson)["view"];
         if (jView.is_object()) {
             shaderView.x = jView.value("x", shaderView.x);
             shaderView.y = jView.value("y", shaderView.y);
@@ -128,7 +128,7 @@ bool Config::tryReadFile() {
             shaderView.height = jView.value("height", shaderView.height);
         }
 
-        json jShaders = (*j)["shaders"];
+        json jShaders = (*currentJson)["shaders"];
         if (jShaders.is_object()) {
             customVertexShaderPath = jShaders.value("vertex", "");
             customFragmentShaderPath = jShaders.value("fragment", "");
@@ -198,4 +198,41 @@ void Config::store(GLFWwindow* window, ShaderState* state) const {
     } catch (const std::exception& e) {
         std::cerr << "Error storing Config: " << e.what() << std::endl;
     }
+}
+
+void Config::restore(ShaderState* state) {
+    if (!wasRead() && !tryReadFile()) {
+        std::cerr << "Could not restore state, because could not read file." << std::endl;
+        return;
+    }
+
+    if (auto paramsJson = currentJson->at("params")) {
+        state->params = paramsJson.get<Parameters>();
+    }
+
+    if (auto optionsJson = currentJson->at("options")) {
+        state->options = optionsJson.get<ShaderOptions>();
+    }
+
+    if (auto trophyJson = currentJson->at("trophy")) {
+        std::cout << "Rebuilding Trophy from stored config: " << trophyJson << std::endl;
+
+        json logoJson = trophyJson["logo"];
+        state->trophy->logoCenter.x = logoJson["x"];
+        state->trophy->logoCenter.y = logoJson["y"];
+        state->trophy->logoCenter.z = logoJson["z"];
+        state->trophy->logoSize.x = logoJson["width"];
+        state->trophy->logoSize.y = logoJson["height"];
+        state->trophy->logoStartIndex = logoJson["startIndex"];
+
+        json baseJson = trophyJson["base"];
+        state->trophy->baseCenter.x = baseJson["x"];
+        state->trophy->baseCenter.y = baseJson["y"];
+        state->trophy->baseCenter.z = baseJson["z"];
+        state->trophy->baseSize = baseJson["size"];
+        state->trophy->baseStartIndex = baseJson["startIndex"];
+
+        state->trophy->rebuild();
+    }
+
 }

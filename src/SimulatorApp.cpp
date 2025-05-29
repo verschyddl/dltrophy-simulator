@@ -22,19 +22,20 @@ SimulatorApp::SimulatorApp(Config config)
 
     if ((void*)glCreateShader == nullptr) {
         throw std::runtime_error("OpenGL not actually loaded - bad.");
-    };
+    }
 
     glfwGetFramebufferSize(window, &area.width, &area.height);
 
     trophy = new Trophy();
     state = new ShaderState(trophy);
+    config.restore(state);
+
     shader = new TrophyShader(config, state);
     shader->assertSuccess(showError);
 
     receiver = new UdpReceiver(config.udpPort);
 
     initializeKeyMap();
-
 }
 
 SimulatorApp::~SimulatorApp() {
@@ -50,7 +51,7 @@ SimulatorApp::~SimulatorApp() {
 
 GLFWwindow* SimulatorApp::initializeWindow() {
     if (!glfwInit()) {
-        throw std::runtime_error("Cannot initialize GLFW – and thus – anything.");
+        throw std::runtime_error("Cannot rebuild GLFW – and thus – anything.");
     }
 
     glfwSetErrorCallback(handleWindowError);
@@ -350,10 +351,12 @@ void SimulatorApp::buildControlPanel() {
 
     if (ImGui::Button("Randomize LEDs")) {
         state->randomize();
-    }    ImGui::SameLine();
+    }
+    ImGui::SameLine();
     if (ImGui::Button("Print Debug Stuff")) {
         printDebug();
     }
+    ImGui::SameLine();
     if (ImGui::Button("Save State")) {
         config.store(window, state);
     }
@@ -361,31 +364,36 @@ void SimulatorApp::buildControlPanel() {
     ImGui::PushItemWidth(0.32f * panelWidth);
 
     if (ImGui::CollapsingHeader("Trophy Definition")) {
-        ImGuiHelper::SlidersVec3(
+        bool touched = false;
+        touched |= ImGuiHelper::SlidersVec3(
                 "Logo Center",
-                &state->trophy->logoCenter.x, -1.f, +1.f,
-                &state->trophy->logoCenter.y, -1.f, +1.f,
-                &state->trophy->logoCenter.z, -1.f, +1.f,
+                &state->trophy->logoCenter.x, -.25f, +.25f,
+                &state->trophy->logoCenter.y, -.25f, +.25f,
+                &state->trophy->logoCenter.z, -.25f, +.25f,
                 0.15f * panelWidth
         );
-        ImGuiHelper::SlidersVec3(
-                "Sizes",
-                &state->trophy->logoSize.x, -2.f, +2.f,
-                &state->trophy->logoSize.y, -2.f, +2.f,
-                &state->trophy->baseSize, -2.f, +2.f,
+        touched |= ImGuiHelper::SlidersVec3(
+                "Logo/Base Dimensions",
+                &state->trophy->logoSize.x, 0.f, +1.f,
+                &state->trophy->logoSize.y, 0.f, +.5f,
+                &state->trophy->baseSize, 0.f, +2.f,
                 0.15f * panelWidth
         );
-        ImGuiHelper::SlidersVec3(
+        touched |= ImGuiHelper::SlidersVec3(
                 "Base Center",
                 &state->trophy->baseCenter.x, -1.f, +1.f,
                 &state->trophy->baseCenter.y, -1.f, +1.f,
                 &state->trophy->baseCenter.z, -1.f, +1.f,
                 0.15f * panelWidth
         );
-
-        if (ImGui::Button("Apply (might be expensive)")) {
+        if (touched) {
+            state->trophy->rebuild();
             shader->updateLedPositions();
         }
+
+        ImGui::SliderFloat("LED size",
+                           &state->params.ledSize,
+                           1.e-3, 1.e-1);
     }
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -467,10 +475,6 @@ void SimulatorApp::buildControlPanel() {
         ImGui::SliderFloat("Pyramid Epoxy Permittivity",
                            &state->params.epoxyPermittivity,
                            0.f, 200.f);
-
-        ImGui::SliderFloat("LED size",
-                           &state->params.ledSize,
-                           1.e-3, 1.e-1);
 
     }
 

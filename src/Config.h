@@ -44,7 +44,7 @@ struct RelativeRect {
 
 class Config {
 public:
-    const std::string defaultFilename = "smiuluator.cfg";
+    const std::string defaultFilename = "smiuluator.config";
     std::filesystem::path path;
 
     Size windowSize {
@@ -59,11 +59,12 @@ public:
 
     Config(int argc, char* argv[]);
 
-    void restore(GLFWwindow* window);
     void store(GLFWwindow* window, ShaderState* state = nullptr) const;
+    void restore(GLFWwindow* window);
+    void restore(ShaderState* state);
 
     [[nodiscard]]
-    bool wasRead() const { return didRead; };
+    bool wasRead() const { return currentJson != std::nullopt; };
 
     [[nodiscard]]
     Rect shaderRect(Size resolution) const {
@@ -89,8 +90,8 @@ public:
 private:
     bool tryReadFile();
     std::optional<nlohmann::json> tryReadJson() const;
+    std::optional<nlohmann::json> currentJson;
 
-    bool didRead = false;
     std::optional<Coord> windowPos = std::nullopt;
     RelativeRect shaderView{
             .width = 0.5,

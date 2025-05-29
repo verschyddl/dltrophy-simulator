@@ -24,28 +24,39 @@ inline void toggle(bool& flag) {
 }
 
 namespace ImGuiHelper {
-    inline void SlidersVec3(const std::string& label,
+    inline bool SlidersVec3(const std::string& label,
                      float* x, float minX, float maxX,
                      float* y, float minY, float maxY,
                      float* z, float minZ, float maxZ,
-                     float item_width = 0.f
+                     float itemWidth = 0.f
                      ) {
+        bool changed = false;
         auto name = label.c_str();
         ImGui::PushID(name);
-        if (item_width) {
-            ImGui::PushItemWidth(item_width);
+        if (itemWidth) {
+            ImGui::PushItemWidth(itemWidth);
         }
-        ImGui::SliderFloat("##X", x, minX, maxX);
+
+        changed |= ImGui::SliderFloat(
+                "##X", x, minX, maxX
+        );
         ImGui::SameLine();
-        ImGui::SliderFloat("##Y", y, minY, maxY);
+        changed |= ImGui::SliderFloat(
+                "##Y", y, minY, maxY
+        );
         ImGui::SameLine();
-        ImGui::SliderFloat("##Z", z, minZ, maxZ);
+        changed |= ImGui::SliderFloat(
+                "##Z", z, minZ, maxZ
+        );
         ImGui::SameLine();
         ImGui::Text(name);
-        if (item_width) {
+
+        if (itemWidth) {
             ImGui::PopItemWidth();
         }
         ImGui::PopID();
+
+        return changed;
     }
 }
 

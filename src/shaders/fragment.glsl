@@ -13,6 +13,11 @@ uniform int iPass;
 uniform sampler2D iPreviousImage;
 uniform sampler2D iBloomImage;
 
+const int ONLY_LEDS_PASS = 0;
+const int SCENE_PASS = 1;
+const int POST_PASS = 2;
+bool onlyLeds = iPass == ONLY_LEDS_PASS;
+
 const int nLeds = 172;
 
 layout(std140) uniform TrophyDefinition {
@@ -259,7 +264,6 @@ float sdPyramidFrame(vec3 p, float h, float b) {
 }
 
 mat3 pyramidRotation = rotateY(pyramidAngle + pyramidAngularVelocity * iTime);
-mat3 pyramidCounterRotation = rotateY(-pyramidAngle - pyramidAngularVelocity * iTime);
 
 // thanks iq https://iquilezles.org/articles/distfunctions/
 float sdPyramid( vec3 p )
@@ -295,10 +299,12 @@ Marched sdScene(vec3 p) {
     Marched hit = sdFloor(p);
     float sd;
 
-    sd = sdPyramid(p);
-    if (sd < hit.sd) {
-        hit.sd = sd;
-        hit.material = onlyPyramidFrame ? PYRAMID_FRAME_MATERIAL : PYRAMID_MATERIAL;
+    if (!onlyLeds) {
+        sd = sdPyramid(p);
+        if (sd < hit.sd) {
+            hit.sd = sd;
+            hit.material = onlyPyramidFrame ? PYRAMID_FRAME_MATERIAL : PYRAMID_MATERIAL;
+        }
     }
 
     p *= pyramidRotation;
@@ -330,6 +336,10 @@ Marched analyticalHit(Ray ray) {
     float cd = dot(ray.dir, floorNormal);
 
     Marched hit = Marched(1.e4, MISS, c.xxx, -1, floorNormal);
+    if (onlyLeds) {
+        return hit;
+    }
+
     if (cd == 0) { // ray parallel to the floor -- can never hit
         return hit;
     }
@@ -413,6 +423,8 @@ void pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out 
     );
 }
 
+const vec3 debugColor = c.xwy; // Ein schnöde-ulkiges Orange
+
 vec3 opaqueMaterial(Marched hit, vec3 ray) {
     switch (hit.material) {
         case LED_MATERIAL:
@@ -436,8 +448,7 @@ vec3 opaqueMaterial(Marched hit, vec3 ray) {
             return vec3(0.62, 0.0, 1.);
 
         default:
-            // Ein ulkiges Orange, kann ja aber nie(TM) vorkommen.
-            return c.xwy;
+            return onlyLeds ? c.yyy : debugColor;
     }
 }
 
@@ -474,7 +485,29 @@ Marched traceScene(Ray ray) {
     return hit;
 }
 
-void postProcess(inout vec3 col, in vec2 uv) {
+const float SAMPLE_COUNT = 10.;
+const float goldenPhi = 2.39996323;
+const float blurRadius = 6.;
+const float gaussWidthSquared = 2.;
+
+vec4 blurredBloomImage(in vec2 st) {
+    vec4 result = c.yyyy;
+    for (float s = 0.; s < SAMPLE_COUNT; s+= 1.) {
+        float r = blurRadius * sqrt((s + 0.5) / SAMPLE_COUNT);
+        float theta = s * goldenPhi ; // + globalSeed ?
+        vec2 offset = r * vec2(cos(theta), sin(theta)) * 1./iResolution.y;
+        float weight = exp(-dot(offset, offset) / gaussWidthSquared);
+
+        result.rgb += texture(iBloomImage, st + offset) * weight;
+        result.a += weight;
+    }
+    return vec4(result.rgb / result.a, 1.);
+}
+
+void postProcess(inout vec3 col, in vec2 uv, in vec2 st) {
+//    vec4 bloomImage = blurredBloomImage(st);
+//    col = mix(col, bloomImage.rgb, bloomImage.a);
+
     // simple vignette for now.
     float rf = length(uv) * 0.9;
     rf = pow(rf, 4.2) + 1.;
@@ -504,16 +537,13 @@ void main() {
     fragColor = c.xxxy;
     vec3 col = fragColor.rgb;
 
-    vec3 grid = draw_grid(uv);
-    if (showGrid) {
-        fragColor.rgb = 0.5 * grid;
-    }
-
-    uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
-    globalSeed = float(base_hash(bits))/float(0xffffffffU);
-    if (!noStochasticVariation) {
-        globalSeed += iTime;
-        uv += hash2(globalSeed) / iResolution;
+    if (!onlyLeds) {
+        uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
+        globalSeed = float(base_hash(bits))/float(0xffffffffU);
+        if (!noStochasticVariation) {
+            globalSeed += iTime;
+            uv += hash2(globalSeed) / iResolution;
+        }
     }
 
     vec3 lightDir = normalize(vec3(0,.125+.05*sin(.1*iTime),1));
@@ -529,6 +559,12 @@ void main() {
     col = c.yyy;
     ray = Ray(ro, rd);
     hit = traceScene(ray);
+
+    if (onlyLeds) {
+        fragColor.rgb = hit.color;
+        return;
+    }
+
     float fogMixing = exp(-fogScaling * pow(abs(hit.sd), fogGrading));
     col = mix(fragColor.rgb, hit.color, fogMixing);
 
@@ -537,6 +573,7 @@ void main() {
     clickedLedIndex = clicked ? hit.ledIndex : -1;
 
     if (showGrid) {
+        vec3 grid = draw_grid(uv);
         col += 0.2 * grid;
     }
 
@@ -546,9 +583,9 @@ void main() {
     vec2 st = (gl_FragCoord.xy) / (iResolution + iRect.xy);
     vec4 previousImage = texture(iPreviousImage, st);
 
-    if (iPass == 1) {
+    if (iPass == POST_PASS) {
         col = previousImage.rgb / previousImage.a;
-        postProcess(col, uv);
+        postProcess(col, uv, st);
         fragColor = vec4(col, 1.);
         return;
     }

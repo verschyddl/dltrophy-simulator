@@ -35,6 +35,7 @@ void TrophyShader::initializeProgram(const Config& config) {
     iFrame.loadLocation(program);
     iPass.loadLocation(program);
     iPreviousImage.loadLocation(program);
+    iBloomImage.loadLocation(program);
     iMouse.loadLocation(program);
 
     initUniformBuffers();
@@ -328,9 +329,6 @@ void TrophyShader::use() {
     glUseProgram(program);
 
     iRect.set();
-
-    glActiveTexture(GL_TEXTURE0);
-    iPreviousImage.set(0);
 }
 
 inline void fillStateUniformBuffer(ShaderState* state) {
@@ -355,19 +353,34 @@ inline void fillStateUniformBuffer(ShaderState* state) {
     );
 }
 
+const int ONLY_LEDS_PASS = 0;
+const int SCENE_PASS = 1;
+const int POST_PASS = 2;
+
 void TrophyShader::render() {
     glBindBuffer(GL_UNIFORM_BUFFER, stateBufferId);
     fillStateUniformBuffer(state);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+    iBloomImage.set(1);
+    glActiveTexture(GL_TEXTURE1);
+
+    iPass.set(ONLY_LEDS_PASS);
+    glBindFramebuffer(GL_FRAMEBUFFER, bloomFramebuffer.object);
+    glBindTexture(GL_TEXTURE_2D, bloomFramebuffer.texture);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
     auto order = feedbackFramebuffers.getOrderAndAdvance();
 
-    iPass.set(0);
+    iPreviousImage.set(0);
+    glActiveTexture(GL_TEXTURE0);
+
+    iPass.set(SCENE_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.object[order.first]);
     glBindTexture(GL_TEXTURE_2D, feedbackFramebuffers.texture[order.second]);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    iPass.set(1);
+    iPass.set(POST_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }

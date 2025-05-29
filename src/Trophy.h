@@ -44,10 +44,10 @@ struct Trophy {
     glm::vec3 posMin{}, posMax{};
 
     Trophy() {
-        initialize();
+        rebuild();
     }
 
-    void initialize() {
+    void rebuild() {
         posMin = {0, 0, 0};
         posMax = {0, 0, 0};
 
