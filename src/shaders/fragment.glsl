@@ -41,17 +41,10 @@ layout(std140) uniform StateBuffer {
           pyramidAngle, pyramidAngularVelocity;
     float epoxyPermittivity;
     float blendPreviousMixing;
-    float traceMinDistance, traceMaxDistance;
+    float traceMinDistance, traceMaxDistance, traceFixedStep;
     int traceMaxSteps, traceMaxRecursions;
     int options;
 };
-
-//const float MAX_DIST = 500.;
-//const float MIN_DIST = 1.e-3;
-//const int MAX_STEPS = 120;
-//// Note: The Epoxy Pyramid needs Ray Tracing:
-//const int MAX_RECURSION = 8;
-//const float PYRAMID_STEP = 0.1; // unused yet
 
 #define hasOption(index) (options & (1 << (8 * index))) != 0
 
@@ -485,28 +478,30 @@ Marched traceScene(Ray ray) {
     return hit;
 }
 
-const float SAMPLE_COUNT = 10.;
+const float SAMPLE_COUNT = 16.;
 const float goldenPhi = 2.39996323;
-const float blurRadius = 6.;
-const float gaussWidthSquared = 2.;
+const float blurRadius = 4.;
+const float gaussWidthSquared = 1.;
 
-vec4 blurredBloomImage(in vec2 st) {
+vec3 blurredBloomImage(in vec2 st) {
     vec4 result = c.yyyy;
     for (float s = 0.; s < SAMPLE_COUNT; s+= 1.) {
         float r = blurRadius * sqrt((s + 0.5) / SAMPLE_COUNT);
         float theta = s * goldenPhi ; // + globalSeed ?
         vec2 offset = r * vec2(cos(theta), sin(theta)) * 1./iResolution.y;
         float weight = exp(-dot(offset, offset) / gaussWidthSquared);
-
-        result.rgb += texture(iBloomImage, st + offset) * weight;
+        result.rgb += weight * texture(iBloomImage, st + offset).rgb;
         result.a += weight;
     }
-    return vec4(result.rgb / result.a, 1.);
+    return result.rgb / result.a;
 }
 
 void postProcess(inout vec3 col, in vec2 uv, in vec2 st) {
-//    vec4 bloomImage = blurredBloomImage(st);
-//    col = mix(col, bloomImage.rgb, bloomImage.a);
+    vec3 bloomImage = blurredBloomImage(st);
+    if (length(bloomImage) > length(col)) {
+        col = bloomImage;
+    }
+    col = mix(col, bloomImage, length(bloomImage));
 
     // simple vignette for now.
     float rf = length(uv) * 0.9;

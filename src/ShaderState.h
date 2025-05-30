@@ -36,7 +36,7 @@ struct Parameters {
           pyramidAngle, pyramidAngularVelocity;
     float epoxyPermittivity;
     float blendPreviousMixing;
-    float traceMinDistance, traceMaxDistance;
+    float traceMinDistance, traceMaxDistance, traceFixedStep;
     int traceMaxSteps, traceMaxRecursions;
 };
 
@@ -73,6 +73,7 @@ struct ShaderState {
         .blendPreviousMixing = 0.35,
         .traceMinDistance = 1.e-3, // no reason to change
         .traceMaxDistance = 60., // 100. should be enough.
+        .traceFixedStep = 0.1,
         .traceMaxSteps = 40,
         .traceMaxRecursions = 6,
     };
@@ -103,8 +104,11 @@ struct ShaderState {
         return static_cast<GLsizei>(leds.size()) * sizeof(leds[0]);
     }
 
-    void set(size_t index, LED led) {
+    void set(size_t index, LED led, bool silent = false) {
         if (index >= nLeds) {
+            if (silent) {
+                return;
+            }
             throw std::runtime_error(
                     std::format("Trophy has no LED at index {0}", index)
             );

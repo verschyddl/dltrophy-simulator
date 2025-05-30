@@ -59,6 +59,7 @@ GLFWwindow* SimulatorApp::initializeWindow() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
     window = glfwCreateWindow(
             config.windowSize.width,
@@ -232,32 +233,29 @@ void SimulatorApp::handleMouseInput() {
 }
 
 void SimulatorApp::handleUdpMessages() {
+    if (!receiver->runsOn(config.udpPort)) {
+        delete receiver;
+        receiver = new UdpReceiver(config.udpPort);
+    }
+
     auto packet = receiver->listen();
-    if (!packet.has_value())
+    if (!packet.has_value()) {
         return;
+    }
 
     auto message = UdpInterpreter::interpret(*packet);
-    auto now = std::time(nullptr);
-    auto timestamp = std::put_time(std::localtime(&now), "%Y-%m-%d %H:%M:%S");
 
     std::visit(
-        [this, timestamp](const auto& msg) {
+        [this](const auto& msg) {
             using T = std::decay_t<decltype(msg)>;
 
             if constexpr (std::is_same_v<T, ProtocolMessage>) {
 
                 for (const auto& [index, led]: msg.mapping) {
-                    try {
-                        this->state->set(index, led);
-                    } catch (const std::exception& e) {
-                        std::cerr << e.what() << std::endl;
-                    }
-                }
+                    this->state->set(index, led, true);
 
-                std::cout << "[" << timestamp << "][Debug Message] "
-                          << msg.mapping.size() << " LEDs"
-                          << " from " << msg.source
-                          << std::endl;
+                    this->lastMessage = std::move(msg);
+                }
 
             } else if constexpr (std::is_same_v<T, UnreadableMessage>) {
                 std::cerr << "[" << timestamp << "][Debug Message] Unreadable: "
@@ -349,6 +347,10 @@ void SimulatorApp::buildControlPanel() {
                  shader->iRect.value.x,
                  shader->iRect.value.y);
 
+    ImGui::InputInt("Port for UDP Messages", &config.udpPort,
+                    0, 0,
+                    ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_CharsDecimal);
+
     if (ImGui::Button("Randomize LEDs")) {
         state->randomize();
     }
@@ -363,20 +365,13 @@ void SimulatorApp::buildControlPanel() {
 
     ImGui::PushItemWidth(0.32f * panelWidth);
 
-    if (ImGui::CollapsingHeader("Trophy Definition")) {
+    if (ImGui::CollapsingHeader("Trophy LEDs Definition")) {
         bool touched = false;
         touched |= ImGuiHelper::SlidersVec3(
                 "Logo Center",
                 &state->trophy->logoCenter.x, -.25f, +.25f,
-                &state->trophy->logoCenter.y, -.25f, +.25f,
+                &state->trophy->logoCenter.y, 0.f, +.5f,
                 &state->trophy->logoCenter.z, -.25f, +.25f,
-                0.15f * panelWidth
-        );
-        touched |= ImGuiHelper::SlidersVec3(
-                "Logo/Base Dimensions",
-                &state->trophy->logoSize.x, 0.f, +1.f,
-                &state->trophy->logoSize.y, 0.f, +.5f,
-                &state->trophy->baseSize, 0.f, +2.f,
                 0.15f * panelWidth
         );
         touched |= ImGuiHelper::SlidersVec3(
@@ -384,6 +379,13 @@ void SimulatorApp::buildControlPanel() {
                 &state->trophy->baseCenter.x, -1.f, +1.f,
                 &state->trophy->baseCenter.y, -1.f, +1.f,
                 &state->trophy->baseCenter.z, -1.f, +1.f,
+                0.15f * panelWidth
+        );
+        touched |= ImGuiHelper::SlidersVec3(
+                "Logo/Base Dimensions",
+                &state->trophy->logoSize.x, 0.1f, +2.f,
+                &state->trophy->logoSize.y, 0.1f, +.5f,
+                &state->trophy->baseSize, 0.f, +2.f,
                 0.15f * panelWidth
         );
         if (touched) {
@@ -474,7 +476,7 @@ void SimulatorApp::buildControlPanel() {
 
         ImGui::SliderFloat("Pyramid Epoxy Permittivity",
                            &state->params.epoxyPermittivity,
-                           0.f, 200.f);
+                           0.01f, 300.f);
 
     }
 
@@ -491,7 +493,6 @@ void SimulatorApp::buildControlPanel() {
                            1., 1000.);
         ImGui::SameLine();
         ImGui::Text("March Limits");
-
 //        ImGui::SliderInt("##MaxSteps",
 //                           &state->params.traceMaxSteps,
 //                           1, 1000);
@@ -534,4 +535,24 @@ void SimulatorApp::printDebug() const {
         }
     }
     std::cout << std::endl;
+
+    if (lastMessage.has_value()) {
+        auto timestamp = UdpInterpreter::formatTime(*lastMessage);
+        std::cout << "Last UDP Message from " << lastMessage->source
+                  << " at " << timestamp << std::endl
+                  << "Protocol: " << (lastMessage->protocol == RealtimeProtocol::DRGB ? "DRGB" : "WARLS");
+        if (lastMessage->timeoutSec.has_value()) {
+            std::cout << "Timeout: " << *lastMessage->timeoutSec;
+        }
+        for (const auto& [index, led] : lastMessage->mapping) {
+            std::cout << "Update LED @Index "
+                      << index << ": "
+                      << led.r << ", "
+                      << led.g << ", "
+                      << led.b << std::endl;
+        }
+    } else {
+        std::cout << "UDP MESSAGES? nothing received yet." << std::endl;
+    }
+
 }

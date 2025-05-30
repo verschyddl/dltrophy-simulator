@@ -42,7 +42,7 @@ private:
     void initUniformBuffers();
 
     FramebufferPingPong feedbackFramebuffers;
-    Framebuffer bloomFramebuffer;
+    Framebuffer bloomFramebuffer = Framebuffer("LEDs/Bloom");
     void initFramebuffers(const Rect& rect);
 
 public:

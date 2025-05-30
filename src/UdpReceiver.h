@@ -39,9 +39,14 @@ public:
                     port
             ));
         }
+
+        std::cout << "[Socket] Listening for UDP packets on port " << port << std::endl;
     }
 
-    ~UdpReceiver() = default;
+    ~UdpReceiver()
+    {
+        std::cout << "[Socket] Stopped listening on port " << port << std::endl;
+    }
 
     std::optional<RawMessage> listen() {
         auto package = socket.receive(maxMessageSize);
@@ -54,6 +59,10 @@ public:
         };
     }
 
+    bool runsOn(int udpPort) {
+        return port == udpPort;
+    }
+
     static std::vector<int> decodeIntegers(MinimalSocket::ReceiveStringResult message) {
         std::vector<int> values;
         for (char c: message.received_message) {
@@ -63,6 +72,7 @@ public:
         }
         return values;
     }
+
 };
 
 #endif //DLTROPHY_SIMULATOR_UDPRECEIVER_H

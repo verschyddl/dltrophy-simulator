@@ -39,7 +39,7 @@ struct Trophy {
     glm::vec3 baseCenter = {0.f, -.3f, 0.f};
     float baseSize = 1.0f;
     glm::vec3 backLedPos{-0.05f, -0.1f, 0.02f};
-    glm::vec3 floorLedPos{0.0f, 0.0f, 0.f};
+    glm::vec3 floorLedPos{0.0f, -.35f, 0.f};
 
     glm::vec3 posMin{}, posMax{};
 
@@ -134,27 +134,33 @@ struct Trophy {
                 ? static_cast<size_t>(std::distance(logo_order.begin(), it))
                 : logo_order.size();
         auto indexX = double(index % N_LOGO_WIDTH);
-        auto indexY = double((index - indexX) / N_LOGO_WIDTH);
-        return glm::vec2{
-            -0.5 + indexX / double(N_LOGO_WIDTH),
-            -0.5 + indexY / double(N_LOGO_HEIGHT)
+        auto indexY = -double((index - indexX) / N_LOGO_WIDTH);
+        glm::vec2 result{
+                -0.5 + indexX / double(N_LOGO_WIDTH),
+                -0.5 + indexY / double(N_LOGO_HEIGHT)
+        };
+        auto cos60 = cos(60. * M_PI/180.);
+        auto sin60 = sin(60. * M_PI/180.);
+        return {
+                cos60 * result.x - sin60 * result.y - 0.5,
+                sin60 * result.x + cos60 * result.y - 0.5,
         };
     }
 
-    static glm::vec2 calc_base_order(size_t base_index) {
+    static glm::vec2 calc_base_order(int base_index) {
         size_t N_EDGE = N_LEDS_IN_BASE / 4;
-        float edge_step = 1. / float(N_EDGE - 1 + 2);
+        float edge_step = 1.f / float(N_EDGE - 1 + 2);
         int base_edge = base_index / N_EDGE;
 
         if (base_edge > 0 && base_edge < 3) {
-            size_t y_index = (base_index % (2 * N_EDGE)) / 2;
+            int y_index = (base_index % (2 * N_EDGE)) / 2;
             return glm::vec2{
                     -0.5f + (base_index % 2),
                     -0.5f + edge_step * (1 + y_index)
             };
         }
         else {
-            size_t x_index = base_index % N_EDGE;
+            int x_index = base_index % N_EDGE;
             return glm::vec2{
                     -0.5f + edge_step * (1 + x_index),
                     -0.5f + (base_edge > 0)

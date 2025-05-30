@@ -193,7 +193,8 @@ void Config::store(GLFWwindow* window, ShaderState* state) const {
                     std::format("Cannot open file {0}", path.string())
             );
         }
-        file << j.dump(4);
+
+        file << std::setprecision(3) << j.dump(4);
 
     } catch (const std::exception& e) {
         std::cerr << "Error storing Config: " << e.what() << std::endl;
@@ -205,16 +206,18 @@ void Config::restore(ShaderState* state) {
         std::cerr << "Could not restore state, because could not read file." << std::endl;
         return;
     }
-
-    if (auto paramsJson = currentJson->at("params")) {
+    if (currentJson->contains("params")) {
+        auto paramsJson = currentJson->at("params");
         state->params = paramsJson.get<Parameters>();
     }
 
-    if (auto optionsJson = currentJson->at("options")) {
+    if (currentJson->contains("options")) {
+        auto optionsJson = currentJson->at("options");
         state->options = optionsJson.get<ShaderOptions>();
     }
 
-    if (auto trophyJson = currentJson->at("trophy")) {
+    if (currentJson->contains("trophy")) {
+        auto trophyJson = currentJson->at("trophy");
         std::cout << "Rebuilding Trophy from stored config: " << trophyJson << std::endl;
 
         json logoJson = trophyJson["logo"];

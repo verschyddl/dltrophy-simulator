@@ -10,14 +10,14 @@
 #include <map>
 #include <optional>
 #include <format>
+#include <time.h>
 
 enum class RealtimeProtocol {
     // cf. https://kno.wled.ge/interfaces/udp-realtime/
     // there are more defined, but only these seem useless here:
     // WARLS: <2 header bytes>; INDEX R G B INDEX R G B ...
-    // DRGB: <2 header bytes>; R G B R G B ...
-
     WARLS,
+    // DRGB: <2 header bytes>; R G B R G B ...
     DRGB,
 };
 
@@ -26,10 +26,13 @@ struct ProtocolMessage {
     std::optional<int> timeoutSec;
     std::unordered_map<uint8_t, LED> mapping;
     std::string source;
+    time_t timestamp = std::time(nullptr);
 };
 
 struct UnreadableMessage {
     std::string reason;
+    RawMessage original;
+    time_t timestamp = std::time(nullptr);
 };
 
 const std::unordered_map<RealtimeProtocol, size_t> protocolUnitSize{
@@ -37,15 +40,16 @@ const std::unordered_map<RealtimeProtocol, size_t> protocolUnitSize{
         {RealtimeProtocol::DRGB, 3},
 };
 
+using AnyMessage = std::variant<ProtocolMessage, UnreadableMessage>;
+
 class UdpInterpreter {
 public:
 
-    static std::variant<ProtocolMessage, UnreadableMessage> interpret(const RawMessage& message) {
+    static AnyMessage interpret(const RawMessage& message) {
         auto maybeResult = interpretHeader(message);
         if (std::holds_alternative<UnreadableMessage>(maybeResult)) {
             return maybeResult;
         }
-
         auto result = std::get<ProtocolMessage>(maybeResult);
         int unitSize = protocolUnitSize.at(result.protocol);
         size_t ledIndex;
@@ -70,7 +74,7 @@ public:
 
                 default:
                     // actually handled above already, but just to be sure.
-                    return UnreadableMessage{"Invalid Protocol"};
+                    return UnreadableMessage{"Invalid Protocol", message};
             }
 
             result.mapping[ledIndex] = std::move(led);
@@ -79,10 +83,20 @@ public:
         return result;
     }
 
+    static std::string formatTime(AnyMessage message) {
+        std::ostringstream oss;
+        auto timestamp = std::visit(
+                [](const auto& value) { return value.timestamp; },
+                message
+        );
+        oss << std::put_time(std::localtime(&timestamp), "%Y-%m-%d %H:%M:%S");
+        return oss.str();
+    }
+
 private:
     static std::variant<ProtocolMessage, UnreadableMessage> interpretHeader(const RawMessage& message) {
         if (message.values.size() < 2) {
-            return UnreadableMessage{"Message too short (needs 2 header bytes)"};
+            return UnreadableMessage{"Message too short (needs 2 header bytes)", message};
         }
 
         int protocolIndex = message.values[0];
@@ -91,7 +105,8 @@ private:
         auto protocol = asProtocol(protocolIndex);
         if (!protocol) {
             return UnreadableMessage{
-                    std::format("Unsupported Protocol: {}", protocolIndex)
+                    std::format("Unsupported Protocol: {}", protocolIndex),
+                    message
             };
         }
 

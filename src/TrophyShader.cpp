@@ -28,6 +28,10 @@ TrophyShader::~TrophyShader() {
 }
 
 void TrophyShader::initializeProgram(const Config& config) {
+    if (!glIsProgram(program)) {
+        std::cerr << "[Shader Program] is not valid, error is \"" << program.error << "\"" << std::endl;
+    };
+
     glUseProgram(program);
     iRect.loadLocation(program);
     iTime.loadLocation(program);
@@ -53,6 +57,8 @@ void TrophyShader::teardown() {
     glDeleteBuffers(1, &definitionBufferId);
     glDeleteFramebuffers(feedbackFramebuffers.object.size(), &feedbackFramebuffers.object[0]);
     glDeleteTextures(feedbackFramebuffers.texture.size(), &feedbackFramebuffers.texture[0]);
+    glDeleteFramebuffers(1, &bloomFramebuffer.object);
+    glDeleteTextures(1, &bloomFramebuffer.texture);
 }
 
 void TrophyShader::onRectChange(Size resolution, const Config& config) {
@@ -208,7 +214,12 @@ void TrophyShader::initVertices() {
     glEnableVertexAttribArray(positionAttributeLocation);
 }
 
-static inline void attachFramebufferTexture(GLuint fbo, GLuint textureId, Rect rect, GLuint colorAttachment) {
+static inline void attachFramebufferFloatTexture(
+        GLuint fbo,
+        GLuint textureId,
+        Rect rect,
+        GLuint colorAttachment
+) {
     glBindTexture(GL_TEXTURE_2D, textureId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -226,7 +237,7 @@ static inline void attachFramebufferTexture(GLuint fbo, GLuint textureId, Rect r
                  nullptr);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER,
-                           GL_COLOR_ATTACHMENT0,
+                           colorAttachment,
                            GL_TEXTURE_2D,
                            textureId,
                            0);
@@ -241,24 +252,26 @@ void TrophyShader::initFramebuffers(const Rect& rect) {
     glGenFramebuffers(n, &feedbackFramebuffers.object[0]);
 
     for (int i = 0; i < n; i++) {
-        attachFramebufferTexture(feedbackFramebuffers.object[i],
-                                 feedbackFramebuffers.texture[i],
-                                 rect,
-                                 GL_COLOR_ATTACHMENT0);
+        attachFramebufferFloatTexture(feedbackFramebuffers.object[i],
+                                      feedbackFramebuffers.texture[i],
+                                      rect,
+                                      GL_COLOR_ATTACHMENT0);
         feedbackFramebuffers.status[i] = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         feedbackFramebuffers.assertStatus(i);
     }
 
-    // Now the one for the Bloom Effect:
+    // Now the one for the Bloom Effect / Glowing LEDs:
     glDeleteFramebuffers(1, &bloomFramebuffer.object);
     glDeleteTextures(1, &bloomFramebuffer.texture);
     glGenTextures(1, &bloomFramebuffer.texture);
     glGenFramebuffers(1, &bloomFramebuffer.object);
 
-    attachFramebufferTexture(bloomFramebuffer.object,
-                             bloomFramebuffer.texture,
-                             rect,
-                             GL_COLOR_ATTACHMENT1);
+    attachFramebufferFloatTexture(bloomFramebuffer.object,
+                                  bloomFramebuffer.texture,
+                                  rect,
+                                  GL_COLOR_ATTACHMENT0);
+    bloomFramebuffer.status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    bloomFramebuffer.assertStatus();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -363,20 +376,19 @@ void TrophyShader::render() {
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     iBloomImage.set(1);
-    glActiveTexture(GL_TEXTURE1);
-
     iPass.set(ONLY_LEDS_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, bloomFramebuffer.object);
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, bloomFramebuffer.texture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     auto order = feedbackFramebuffers.getOrderAndAdvance();
 
-    iPreviousImage.set(0);
-    glActiveTexture(GL_TEXTURE0);
 
+    iPreviousImage.set(0);
     iPass.set(SCENE_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.object[order.first]);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, feedbackFramebuffers.texture[order.second]);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 

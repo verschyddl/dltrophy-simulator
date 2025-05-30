@@ -15,6 +15,7 @@
 #include "TrophyShader.h"
 #include "Config.h"
 #include "inputHelpers.h"
+#include "UdpInterpreter.h"
 #include <imgui.h>
 
 class SimulatorApp {
@@ -65,6 +66,7 @@ private:
 
     UdpReceiver* receiver;
     void handleUdpMessages();
+    std::optional<ProtocolMessage> lastMessage;
 
     static void showError(const std::string & message);
 };

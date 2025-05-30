@@ -152,8 +152,11 @@ struct Framebuffer {
     GLuint object;
     GLuint texture;
     GLenum status;
+    std::string label;
 
-    void assertStatus(const std::string& label) const {
+    explicit Framebuffer(const std::string& label): label(std::move(label)) {}
+
+    void assertStatus() const {
         if (status != GL_FRAMEBUFFER_COMPLETE) {
             throw std::runtime_error(std::format(
                     "Error in Framebuffer \"{}\": {} ({})",

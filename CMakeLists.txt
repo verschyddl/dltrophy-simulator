@@ -44,6 +44,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(json)
 
+
 # copy the shader sources into the build
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
