@@ -258,7 +258,7 @@ void SimulatorApp::handleUdpMessages() {
                 }
 
             } else if constexpr (std::is_same_v<T, UnreadableMessage>) {
-                std::cerr << "[" << timestamp << "][Debug Message] Unreadable: "
+                std::cerr << "[" << UdpInterpreter::formatTime(msg) << "][Debug Message] Unreadable: "
                         << msg.reason
                         << std::endl;
             }
