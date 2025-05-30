@@ -546,7 +546,7 @@ void SimulatorApp::printDebug() const {
         }
         for (const auto& [index, led] : lastMessage->mapping) {
             std::cout << "Update LED @Index "
-                      << index << ": "
+                      << static_cast<int>(index) << ": "
                       << led.r << ", "
                       << led.g << ", "
                       << led.b << std::endl;
