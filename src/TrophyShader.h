@@ -42,11 +42,10 @@ private:
     FramebufferPingPong feedbackFramebuffers{};
     Framebuffer ledsOnly{};
     void initFramebuffers(const Rect& rect);
+
     ExtraOutputs extraOutputs{};
     GLuint extraOutputTexture[2];
-    GLuint debugTexture;
     void handleExtraOutputs(int pingIndex);
-
     static constexpr GLenum extraOutputAttachment = GL_COLOR_ATTACHMENT1;
     static constexpr GLenum drawBuffers[] = {
             GL_COLOR_ATTACHMENT0,
@@ -82,6 +81,7 @@ public:
     void updateLedPositions() const;
 
     bool shouldReadExtraOutputs = false;
+    // these are for trying the PBO reading again, as soon as bog.
     int readingFromPingIndex = -1;
     int readInFrames = 0;
 };
