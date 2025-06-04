@@ -1,3 +1,6 @@
-- Ray Tracer that can render halbtransparent
-- Connect UDP
-- Check two single LEDs
+- Make LEDs clickable (doesn't work for now, helps with debug)
+- Improve Ray Tracer (inside Pyramid)
+- Check two single-PWM LEDs
+
+idea.
+- wire up a framework to include corresponding WLED FX_... file for development?
