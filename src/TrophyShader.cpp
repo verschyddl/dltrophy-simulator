@@ -57,6 +57,8 @@ void TrophyShader::teardown() {
     glDeleteBuffers(1, &definitionBufferId);
     feedbackFramebuffers.teardown();
     ledsOnly.teardown();
+    glDeleteTextures(2, &extraOutputTexture[0]);
+    glDeleteTextures(1, &debugTexture);
 }
 
 void TrophyShader::onRectChange(Size resolution, const Config& config) {
@@ -212,54 +214,40 @@ void TrophyShader::initVertices() {
     glEnableVertexAttribArray(positionAttributeLocation);
 }
 
-static inline void attachFramebufferFloatTexture(
-        GLuint textureId,
-        GLuint colorAttachment,
-        Rect rect
-) {
-    glBindTexture(GL_TEXTURE_2D, textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_RGBA32F,
-                 // the resolution must include the origin shift, I suppose.
-                 // i.e. has unused space from (0,0) to (rect.x, rect.y):
-                 rect.maxX(),
-                 rect.maxY(),
-                 0,
-                 GL_RGBA,
-                 GL_FLOAT,
-                 nullptr);
-    glFramebufferTexture2D(GL_FRAMEBUFFER,
-                           colorAttachment,
-                           GL_TEXTURE_2D,
-                           textureId,
-                           0);
-}
-
 void TrophyShader::initFramebuffers(const Rect& rect) {
     feedbackFramebuffers.initialize();
     glDeleteTextures(2, &extraOutputTexture[0]);
     glGenTextures(2, &extraOutputTexture[0]);
 
+    // the resolution must include the origin shift, I suppose.
+    // i.e. has unused space from (0,0) to (rect.x, rect.y):
+    auto size = rect.extent();
+
     for (int i = 0; i < 2; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.fbo[i]);
         attachFramebufferFloatTexture(feedbackFramebuffers.texture[i],
                                       feedbackFramebuffers.attachment,
-                                      rect);
+                                      size);
+        feedbackFramebuffers.assertStatus(i);
+
+        attachFramebufferFloatTexture(extraOutputTexture[i],
+                                      extraOutputAttachment,
+                                      size);
         feedbackFramebuffers.assertStatus(i);
     }
 
     ledsOnly.initialize();
+    ledsOnly.debugLabel = "Only LEDs";
 
     glBindFramebuffer(GL_FRAMEBUFFER, ledsOnly.fbo);
     attachFramebufferFloatTexture(ledsOnly.texture,
                                   ledsOnly.attachment,
-                                  rect);
+                                  size);
     ledsOnly.assertStatus();
+
+    glDeleteTextures(1, &debugTexture);
+    glGenTextures(1, &debugTexture);
+    initFloatTexture(debugTexture, size);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -370,18 +358,35 @@ void TrophyShader::render() {
     glBindTexture(GL_TEXTURE_2D, ledsOnly.texture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    auto order = feedbackFramebuffers.getOrderAndAdvance();
+    // auto order = feedbackFramebuffers.getOrderAndAdvance();
+    auto order = feedbackFramebuffers.getOrder();
 
     iPreviousImage.set(0);
     iPass.set(SCENE_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
+    glDrawBuffers(2, drawBuffers);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, feedbackFramebuffers.texture[order.second]);
+    // glBindTexture(GL_TEXTURE_2D, feedbackFramebuffers.texture[order.second]);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // benchmark: do not use Ping Pong -> but plainly copy texture
+    // -> gave me (8 \pm 0.3) FPS
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBindTexture(GL_TEXTURE_2D, debugTexture);
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0,
+                        iRect.value.x, iRect.value.y,
+                        iRect.value.x, iRect.value.y,
+                        iRect.value.z, iRect.value.w
+                        );
+
+    // TODO: add extraOutputTextures
 
     iPass.set(POST_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, debugTexture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+
 }
 
 const std::pair<std::string, std::string> TrophyShader::lastReloadInfo() const {

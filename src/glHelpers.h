@@ -14,6 +14,7 @@
 #include <string>
 #include <map>
 #include "FileHelper.h"
+#include "geometryHelpers.h"
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>
@@ -189,21 +190,6 @@ struct Framebuffer {
     };
 };
 
-struct PixelPackFramebuffer : public Framebuffer {
-    GLuint pbo;
-
-    void initialize() {
-        teardown();
-        Framebuffer::initialize();
-        glGenBuffers(1, &pbo);
-    }
-
-    void teardown() {
-        Framebuffer::teardown();
-        glDeleteBuffers(1, &pbo);
-    }
-};
-
 struct FramebufferPingPong {
     static const int N = 2;
     std::array<GLuint, N> fbo{};
@@ -227,10 +213,14 @@ struct FramebufferPingPong {
         glGenBuffers(N, &pbo[0]);
     }
 
-    std::pair<GLuint, GLuint> getOrderAndAdvance() {
+    std::pair<GLuint, GLuint> getOrder() const {
         auto pongCursor = (pingCursor + 1) % N;
-        std::pair<GLuint, GLuint> result{pingCursor, pongCursor};
-        pingCursor = pongCursor;
+        return {pingCursor, pongCursor};
+    }
+
+    std::pair<GLuint, GLuint> getOrderAndAdvance() {
+        auto result = getOrder();
+        pingCursor = result.second;
         return result;
     }
 
@@ -244,5 +234,33 @@ struct FramebufferPingPong {
         }
     }
 };
+
+static inline void initFloatTexture(GLuint texture, Size size) {
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D,
+                 0,
+                 GL_RGBA32F,
+                 size.width,
+                 size.height,
+                 0,
+                 GL_RGBA,
+                 GL_FLOAT,
+                 nullptr);
+    // Note: GL_TEXTURE_2D stays bound for now
+}
+
+static inline void attachFramebufferFloatTexture(GLuint texture, GLuint attachment, Size size) {
+    initFloatTexture(texture, size);
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+                           attachment,
+                           GL_TEXTURE_2D,
+                           texture,
+                           0);
+}
+
 
 #endif //DLTROPHY_SIMULATOR_GLHELPERS_H

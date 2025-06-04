@@ -44,6 +44,7 @@ private:
     void initFramebuffers(const Rect& rect);
     ExtraOutputs extraOutputs{};
     GLuint extraOutputTexture[2];
+    GLuint debugTexture;
     void handleExtraOutputs(int pingIndex);
 
     static constexpr GLenum extraOutputAttachment = GL_COLOR_ATTACHMENT1;
