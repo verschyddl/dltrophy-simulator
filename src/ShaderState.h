@@ -170,9 +170,6 @@ private:
 public:
     float* data() { return values.data(); }
     const Rect& rect() { return rect_; }
-    const int width() { return rect_.maxX(); }
-    const int height() { return rect_.maxY(); }
-    const std::vector<float> testOutput() { return testOutput_; }
     const std::optional<int> clickedLedIndex() { return clickedLedIndex_; }
 
     void initialize(Rect rect) {
@@ -218,10 +215,11 @@ public:
                 }
             }
         }
-        std::cout << "TEST SUM: " << testSum / 17.3417;
-        std::cout << " -- LedIndex: " << rangeMinLedIndex
-                  << " .. " << rangeMaxLedIndex << " -- ";
+        std::cout << "TEST SUM: " << testSum << " -- ";
         print("Rect", rect_);
+        std::cout << " -- LedIndex: " << rangeMinLedIndex
+                  << " .. " << rangeMaxLedIndex << " -- "
+                  << std::endl;
     }
 };
 

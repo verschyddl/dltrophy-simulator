@@ -235,8 +235,6 @@ void TrophyShader::initFramebuffers(const Rect& rect) {
                                       extraOutputAttachment,
                                       size);
         feedbackFramebuffers.assertStatus(i);
-
-        glDrawBuffers(2, drawBuffers);
     }
 
     ledsOnly.initialize();
@@ -345,6 +343,10 @@ inline void fillStateUniformBuffer(ShaderState* state) {
     );
 }
 
+static inline void draw() {
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
 const int ONLY_LEDS_PASS = 0;
 const int SCENE_PASS = 1;
 const int POST_PASS = 2;
@@ -354,42 +356,31 @@ void TrophyShader::render() {
     fillStateUniformBuffer(state);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    glActiveTexture(GL_TEXTURE1);
-    iBloomImage.set(1);
     iPass.set(ONLY_LEDS_PASS);
+    iBloomImage.set(1);
+    glActiveTexture(GL_TEXTURE1);
     glBindFramebuffer(GL_FRAMEBUFFER, ledsOnly.fbo);
     glBindTexture(GL_TEXTURE_2D, ledsOnly.texture);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    draw();
 
-    // auto order = feedbackFramebuffers.getOrderAndAdvance();
-    auto order = feedbackFramebuffers.getOrder();
-
-    glActiveTexture(GL_TEXTURE0);
     iPreviousImage.set(0);
     iPass.set(SCENE_PASS);
+    glActiveTexture(GL_TEXTURE0);
+    auto order = feedbackFramebuffers.getOrderAndAdvance();
     glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
     glDrawBuffers(2, drawBuffers);
-    // glBindTexture(GL_TEXTURE_2D, feedbackFramebuffers.texture[order.second]);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindTexture(GL_TEXTURE_2D, feedbackFramebuffers.texture[order.second]);
+    draw();
 
-    // benchmark: do not use Ping Pong -> but plainly copy texture
-    // -> gave me (8 \pm 0.3) FPS
-    // glBindFramebuffer(GL_READ_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
-    glReadBuffer(GL_COLOR_ATTACHMENT0);
-    glBindTexture(GL_TEXTURE_2D, debugTexture);
-    glCopyTexSubImage2D(GL_TEXTURE_2D, 0,
-                        iRect.value.x, iRect.value.y,
-                        iRect.value.x, iRect.value.y,
-                        iRect.value.z, iRect.value.w
-                        );
+//    // benchmark:
+//    // -> copyTexSubImage2D: gave me (8 \pm 0.3) FPS
+//    // -> Ping Pong: also only about (7 \pm 0.6) FPS
 
     handleExtraOutputs(order.first);
 
     iPass.set(POST_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, debugTexture);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
+    draw();
 }
 
 void TrophyShader::handleExtraOutputs(int pingIndex) {
@@ -398,7 +389,6 @@ void TrophyShader::handleExtraOutputs(int pingIndex) {
     }
     shouldReadExtraOutputs = false;
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, feedbackFramebuffers.fbo[pingIndex]);
     glReadBuffer(extraOutputAttachment);
     auto r = extraOutputs.rect();
     glReadPixels(r.x, r.y,

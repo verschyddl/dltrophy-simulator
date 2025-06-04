@@ -516,7 +516,7 @@ void SimulatorApp::buildControlPanel() {
 //        ImGui::SameLine();
         ImGui::SliderInt("##MaxRecursions",
                            &state->params.traceMaxRecursions,
-                           1, 100);
+                           1, 32);
         ImGui::SameLine();
         ImGui::Text("Max. Recursions");
 

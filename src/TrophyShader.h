@@ -82,6 +82,7 @@ public:
     void updateLedPositions() const;
 
     bool shouldReadExtraOutputs = false;
+    // these are for trying the PBO reading again, as soon as bog.
     int readingFromPingIndex = -1;
     int readInFrames = 0;
 };
