@@ -183,8 +183,8 @@ public:
         clickedLedIndex_ = std::nullopt;
     }
 
-    void interpretValues(void* buffer, glm::vec4 iMouse, float time) {
-        glm::vec4* vecValues = reinterpret_cast<glm::vec4*>(buffer);
+    void interpretValues(glm::vec4 iMouse) {
+        glm::vec4* vecValues = reinterpret_cast<glm::vec4*>(values.data());
         clickedLedIndex_ = std::nullopt;
 
         float testSum = 0.;
@@ -194,6 +194,7 @@ public:
         int rangeMaxY = -1;
         int rangeMinLedIndex = 10000;
         int rangeMaxLedIndex = -10000;
+
         for (int iy = 0; iy < rect_.height; iy++) {
             for (int ix = 0; ix < rect_.width; ix++) {
                 auto index = ix + rect_.width * iy;
@@ -217,9 +218,9 @@ public:
                 }
             }
         }
-        std::cout << "TEST SUM: " << testSum << std::endl;
-
-        std::cout << "  LedIndex: " << rangeMinLedIndex << " .. " << rangeMaxLedIndex << " -- ";
+        std::cout << "TEST SUM: " << testSum / 17.3417;
+        std::cout << " -- LedIndex: " << rangeMinLedIndex
+                  << " .. " << rangeMaxLedIndex << " -- ";
         print("Rect", rect_);
     }
 };

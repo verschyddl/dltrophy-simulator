@@ -528,7 +528,7 @@ void postProcess(inout vec3 col, in vec2 uv, in vec2 st) {
 
 void main() {
     // this is a debug value to signal we actually were called, and currently.
-    extraOutput.x = 1.;
+    extraOutput.x = 17.3417;
     extraOutput.y = -1.;
 
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;

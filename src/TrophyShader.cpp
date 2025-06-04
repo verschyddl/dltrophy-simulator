@@ -383,32 +383,31 @@ void TrophyShader::render() {
                         iRect.value.z, iRect.value.w
                         );
 
-    if (shouldReadExtraOutputs) {
-        shouldReadExtraOutputs = false;
-
-        glFinish();
-        glFlush();
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
-        glReadBuffer(extraOutputAttachment);
-        auto r = extraOutputs.rect();
-        glReadPixels(r.x, r.y,
-                     r.width, r.height,
-                     GL_RGBA,
-                     GL_FLOAT,
-                     extraOutputs.data()
-                     );
-
-        extraOutputs.interpretValues(extraOutputs.data(),
-                                     iMouse.value,
-                                     iTime.value
-                                     );
-    }
+    handleExtraOutputs(order.first);
 
     iPass.set(POST_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, debugTexture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
+}
+
+void TrophyShader::handleExtraOutputs(int pingIndex) {
+    if (!shouldReadExtraOutputs) {
+        return;
+    }
+    shouldReadExtraOutputs = false;
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, feedbackFramebuffers.fbo[pingIndex]);
+    glReadBuffer(extraOutputAttachment);
+    auto r = extraOutputs.rect();
+    glReadPixels(r.x, r.y,
+                 r.width, r.height,
+                 GL_RGBA,
+                 GL_FLOAT,
+                 extraOutputs.data()
+    );
+    extraOutputs.interpretValues(iMouse.value);
 }
 
 const std::pair<std::string, std::string> TrophyShader::lastReloadInfo() const {
