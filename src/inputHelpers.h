@@ -23,6 +23,13 @@ inline void toggle(bool& flag) {
     flag = !flag;
 }
 
+inline bool outsideVec4Rect(double posX, double posY, glm::vec4 rect) {
+    return (posX < rect.x ||
+            posX >= rect.x + rect.z ||
+            posY < rect.y ||
+            posY >= rect.y + rect.w);
+}
+
 namespace ImGuiHelper {
     inline bool SlidersVec3(const std::string& label,
                      float* x, float minX, float maxX,

@@ -194,7 +194,7 @@ void Config::store(GLFWwindow* window, ShaderState* state) const {
             );
         }
 
-        file << std::setprecision(3) << j.dump(4);
+        file << j.dump(4);
 
     } catch (const std::exception& e) {
         std::cerr << "Error storing Config: " << e.what() << std::endl;

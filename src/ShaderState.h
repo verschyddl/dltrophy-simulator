@@ -13,6 +13,8 @@
 #include "glm/vec4.hpp"
 #include "Trophy.h"
 #include "LED.h"
+#include "geometryHelpers.h"
+#include "debug.h"
 
 struct ShaderOptions {
     // this needs minimum alignment (GLint = 4 bytes), therefore a multiple of 4 of flags.
@@ -150,5 +152,90 @@ struct ShaderState {
     }
 };
 
+struct ExtraOutputs {
+    // we allow ourselves to get one extra vec4 (i.e. four extra floats)
+    // from the rendering. these are then distinguished in here.
+
+private:
+    Rect rect_;
+    std::vector<float> values;
+    std::vector<float> testOutput_;
+    std::optional<int> clickedLedIndex_;
+    std::vector<float> unusedZ_;
+    std::vector<float> unusedW_;
+
+    static constexpr float noLedClicked = -1.f;
+    static constexpr float uninitialized = -0.123f;
+
+public:
+    float* data() { return values.data(); }
+    const Rect& rect() { return rect_; }
+    const int width() { return rect_.maxX(); }
+    const int height() { return rect_.maxY(); }
+    const std::vector<float> testOutput() { return testOutput_; }
+    const std::optional<int> clickedLedIndex() { return clickedLedIndex_; }
+
+    void initialize(Rect rect) {
+        rect_ = rect;
+        auto totalSize = rect.extent().area();
+        values = std::vector<float>(4 * totalSize, uninitialized);
+        testOutput_.resize(totalSize);
+        clickedLedIndex_ = std::nullopt;
+    }
+
+    void interpretValues(void* data, glm::vec4 iMouse, float time) {
+        float* values = static_cast<float*>(data);
+        glm::vec4* vecValues = static_cast<glm::vec4*>(data);
+//        auto size = values.size();
+//        values = std::vector<float>(floatData, floatData + size);
+
+        clickedLedIndex_ = std::nullopt;
+        int index = 0;
+        for (int iy = 0; iy < height(); iy++)
+            for (int ix = 0; ix < width(); ix++) {
+
+                auto testVec4 = vecValues[index];
+
+                auto valueX = values[4*index];
+                auto valueY = values[4*index+1];
+                auto valueZ = values[4*index+2];
+                auto valueW = values[4*index+3];
+
+                if (abs(ix - iMouse.z) < 1 && abs(iy - iMouse.w) < 1) {
+                    std::cout << "Values @ Cursor: "
+                              << valueX << ", "
+                              << valueY << ", "
+                              << valueZ << ", "
+                              << valueW
+                              << " -- " << ix << " ~ " << iMouse.z << "; " << iy << " ~ " << iMouse.w
+                              << std::endl;
+                }
+
+                testOutput_[index] = valueX;
+                if (testOutput_[index] == 0.f) {
+                    // this means the main() has not be called on this value
+                    continue;
+                }
+
+                if (valueY != noLedClicked) {
+                    clickedLedIndex_ = static_cast<int>(valueY);
+                }
+
+                std::cout << "    [HARDCORE DEBUG] "
+                          << std::setw(3) << ix << " "
+                          << std::setw(3) << iy << " ("
+                          << valueX << ", "
+                          << valueY << ", "
+                          << valueZ << ", "
+                          << valueW << ") "
+                          << std::endl;
+
+                index++;
+        }
+
+        std::cout << "  Time: " << time << " -- ";
+        print("Rect", rect_);
+    }
+};
 
 #endif //DLTROPHY_SIMULATOR_SHADERSTATE_H

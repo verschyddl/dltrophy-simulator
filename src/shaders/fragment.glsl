@@ -1,8 +1,9 @@
 #version 330 core
 
 precision highp float;
-out vec4 fragColor;
-out int clickedLedIndex;
+// out locations equal color attachments, respectively.
+layout (location = 0) out vec4 fragColor;
+layout (location = 1) out vec4 extraOutput;
 
 uniform float iTime;
 uniform vec4 iRect;
@@ -197,12 +198,18 @@ float starnoise(vec3 rd){
 
 vec3 background(vec3 rd, vec3 ld) {
     float haze = 0.3 * exp2(-5.*(abs(rd.y)-.2*dot(rd,ld)));
-    float st = 3. * starnoise(rd * rotateZ(backgroundSpin * iTime)) * (1. - min(haze,1.));
+    float stars = 0.;
+    float spin = backgroundSpin * iTime;
+    for (float i=0.; i < backgroundSpin + 1.5; i+=1.) {
+        spin -= 0.01;
+        stars += starnoise(rd * rotateZ(spin + 0.01 * hash1(globalSeed)));
+    }
+    stars *= (1. - min(haze,1.));
     vec3 back = vec3(0.,.1,.7)
         * exp2(-.1*abs(length(rd.xz)/rd.y))
         * max(sign(rd.y),0.);
     return clamp(
-            mix(back, vec3(.3,.1, .52), haze) + st
+            mix(back, vec3(.3,.1, .52), haze) + stars
         , 0., 1.);
 }
 
@@ -229,31 +236,26 @@ float sdLineSegment(vec3 p, vec3 a, vec3 b) {
 }
 
 float sdPyramidFrame(vec3 p, float h, float b) {
-    // Base vertices
     vec3 v1 = vec3( b, 0,  b);
     vec3 v2 = vec3(-b, 0,  b);
     vec3 v3 = vec3(-b, 0, -b);
     vec3 v4 = vec3( b, 0, -b);
     vec3 apex = vec3(0, h, 0);
 
-    // Base edges
     float d1 = sdLineSegment(p, v1, v2);
     float d2 = sdLineSegment(p, v2, v3);
     float d3 = sdLineSegment(p, v3, v4);
     float d4 = sdLineSegment(p, v4, v1);
 
-    // Side edges (apex to base)
     float d5 = sdLineSegment(p, apex, v1);
     float d6 = sdLineSegment(p, apex, v2);
     float d7 = sdLineSegment(p, apex, v3);
     float d8 = sdLineSegment(p, apex, v4);
 
-    // Minimum distance to any edge
     float frameDist = min(min(min(d1, d2), min(d3, d4)),
     min(min(d5, d6), min(d7, d8)));
 
-    // Subtract radius for line thickness (e.g., 0.02)
-    return frameDist - 0.005;
+    return frameDist - 0.005; // <-- frame thickness
 }
 
 mat3 pyramidRotation = rotateY(pyramidAngle + pyramidAngularVelocity * iTime);
@@ -390,7 +392,7 @@ void pyramidScatter(const Ray ray, const Marched hit, out vec3 attenuation, out 
     vec3 reflected = reflect(ray.dir, hit.normal);
     float ni_over_nt, cosine;
 
-    attenuation = vec3(1.,0.,1.);
+    attenuation = 0.4 * vec3(0.9, 0.7, 0.95);
     if (dot(ray.dir, hit.normal) > 0.) {
         normal = -hit.normal;
         ni_over_nt = epoxyPermittivity;
@@ -437,6 +439,8 @@ vec3 opaqueMaterial(Marched hit, vec3 ray) {
             const vec3 dark = 0.3 * vec3(.2, .1, .32);
             return mix(dark, floorColor, g);
 
+        case PYRAMID_MATERIAL:
+            return vec3(0.5, 0.0, 0.9);
         case PYRAMID_FRAME_MATERIAL:
             return vec3(0.62, 0.0, 1.);
 
@@ -446,7 +450,7 @@ vec3 opaqueMaterial(Marched hit, vec3 ray) {
 }
 
 Marched traceScene(Ray ray) {
-    vec3 col = c.yyy;
+    vec3 col = c.xxx;
     Marched hit;
     Marched direct_hit;
     Ray scatRay;
@@ -457,8 +461,8 @@ Marched traceScene(Ray ray) {
         if (r == 0) {
             direct_hit = hit;
         }
+        hit.color = opaqueMaterial(hit, advance(ray, hit.sd));
         if (hit.material != PYRAMID_MATERIAL) {
-            hit.color = opaqueMaterial(hit, advance(ray, hit.sd));
             break;
         }
         if (hit.sd >= traceMaxDistance) {
@@ -467,41 +471,48 @@ Marched traceScene(Ray ray) {
         // still here? -> hit the pyramid :) go on scattering, mr. funny boi
         vec3 attenuation;
         pyramidScatter(ray, hit, attenuation, scatRay);
-        col *= attenuation;
+        col *= attenuation * hit.color;
         ray = scatRay;
     }
-    if (r == traceMaxRecursions) {
-        // didn't converge. bad.
-        hit.material = MISS;
-        hit.color = c.wyx; // some signal lilac :P
-    }
+//    if (r == traceMaxRecursions) {
+//        // ... why did I do that, again?
+//        hit.material = MISS;
+//        hit.color = c.wyx; // some signal lilac :P
+//    }
     return hit;
 }
 
-const float SAMPLE_COUNT = 16.;
+const float SAMPLE_COUNT = 32.;
 const float goldenPhi = 2.39996323;
-const float blurRadius = 4.;
-const float gaussWidthSquared = 1.;
+const float blurRadius = 4.8;
+const float inverseGaussWidth = 420.;
 
 vec3 blurredBloomImage(in vec2 st) {
     vec4 result = c.yyyy;
     for (float s = 0.; s < SAMPLE_COUNT; s+= 1.) {
-        float r = blurRadius * sqrt((s + 0.5) / SAMPLE_COUNT);
-        float theta = s * goldenPhi ; // + globalSeed ?
-        vec2 offset = r * vec2(cos(theta), sin(theta)) * 1./iResolution.y;
-        float weight = exp(-dot(offset, offset) / gaussWidthSquared);
+        float r = blurRadius * sqrt((s + 0.5) / SAMPLE_COUNT) * 1./iResolution.y;
+        float theta = s * goldenPhi;
+        theta += 0.05 * hash1(globalSeed);
+        vec2 offset = r * vec2(cos(theta), sin(theta));
+        r *= inverseGaussWidth;
+        float weight = exp(-r * r);
         result.rgb += weight * texture(iBloomImage, st + offset).rgb;
         result.a += weight;
     }
     return result.rgb / result.a;
 }
 
+const float postExposure = 1.2;
+const vec3 postGamma = vec3(0.8);
+
 void postProcess(inout vec3 col, in vec2 uv, in vec2 st) {
     vec3 bloomImage = blurredBloomImage(st);
-    if (length(bloomImage) > length(col)) {
-        col = bloomImage;
-    }
-    col = mix(col, bloomImage, length(bloomImage));
+    float brightness = 1.5 * dot(bloomImage, vec3(0.2126, 0.7152, 0.0722));
+//    brightness = pow(brightness, 0.5);
+//    col = mix(col + 0.1 * bloomImage, bloomImage, brightness);
+    col = mix(col, bloomImage, brightness);
+//    col = 1. - exp(-col * (postExposure + brightness));
+//    col = pow(col, postGamma);
 
     // simple vignette for now.
     float rf = length(uv) * 0.9;
@@ -516,6 +527,10 @@ void postProcess(inout vec3 col, in vec2 uv, in vec2 st) {
 }
 
 void main() {
+    // this is a debug value to signal we actually were called, and currently.
+    extraOutput.x = 17.3417;
+    extraOutput.y = iTime;
+
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;
 
     // border frame
@@ -535,8 +550,8 @@ void main() {
     if (!onlyLeds) {
         uvec2 bits = floatBitsToUint(gl_FragCoord.xy);
         globalSeed = float(base_hash(bits))/float(0xffffffffU);
+        globalSeed += iTime;
         if (!noStochasticVariation) {
-            globalSeed += iTime;
             uv += hash2(globalSeed) / iResolution;
         }
     }
@@ -560,12 +575,14 @@ void main() {
         return;
     }
 
+    bool clicked = distance(iMouse.zw, gl_FragCoord.xy) < 1.;
+    int clickedLedIndex = clicked ? hit.ledIndex : -1;
+    extraOutput.y = float(clickedLedIndex);
+    extraOutput.z = iMouse.z - gl_FragCoord.x;
+    extraOutput.w = 1.47 + iMouse.w - gl_FragCoord.y;
+
     float fogMixing = exp(-fogScaling * pow(abs(hit.sd), fogGrading));
     col = mix(fragColor.rgb, hit.color, fogMixing);
-
-    bool hovered = distance(iMouse.xy, gl_FragCoord.xy) < 1.;
-    bool clicked = iMouse.z > 0 && hovered;
-    clickedLedIndex = clicked ? hit.ledIndex : -1;
 
     if (showGrid) {
         vec3 grid = draw_grid(uv);

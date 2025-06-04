@@ -63,6 +63,8 @@ add_executable(${PROJECT_NAME}
         src/Trophy.h
         src/inputHelpers.h
         src/UdpInterpreter.h
+        src/geometryHelpers.h
+        src/debug.h
 )
 
 target_sources(${PROJECT_NAME} PRIVATE

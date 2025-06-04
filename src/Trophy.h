@@ -23,10 +23,11 @@ struct Trophy {
     static const GLuint N_SINGLE_LEDS = 2;
     static const GLuint N_LEDS = N_RGB_LEDS + N_SINGLE_LEDS;
 
+    // could be considered configurable (it's all WLED config...), but are fixed for now.
     int logoStartIndex = 0;
     int baseStartIndex = N_LEDS_IN_LOGO;
-    int floorLedIndex = N_LEDS - 2;
-    int backLedIndex = N_LEDS - 1;
+    int backLedIndex = N_LEDS - 2;
+    int floorLedIndex = N_LEDS - 1;
 
     std::array<glm::vec4, N_LEDS> position{};
 
@@ -77,11 +78,12 @@ struct Trophy {
                 };
             }
             else if (i == floorLedIndex) {
-                // floorLedPos might be taken from baseCenter.z, maybe.
                 absolute = floorLedPos;
             }
             else if (i == backLedIndex) {
                 absolute = backLedPos;
+            } else {
+                std::cout << "[Trophy LED] Unclear what LED #" << i << " is supposed to be =/" << std::endl;
             }
 
             position[i] = glm::vec4{

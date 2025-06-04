@@ -10,37 +10,8 @@
 #include <GLFW/glfw3.h>
 #include <glm/vec4.hpp>
 #include <nlohmann/json.hpp>
+#include "geometryHelpers.h"
 #include "ShaderState.h"
-
-struct Size {
-    int width;
-    int height;
-
-    explicit operator bool() const {
-        return width > 0 && height > 0;
-    }
-};
-
-struct Coord {
-    int x;
-    int y;
-};
-
-struct Rect : public Size, public Coord {
-    static Rect query(GLFWwindow* window) {
-        Rect result{};
-        glfwGetWindowSize(window, &result.width, &result.height);
-        glfwGetWindowPos(window, &result.x, &result.y);
-        return result;
-    }
-};
-
-struct RelativeRect {
-    float width;
-    float height;
-    float x;
-    float y;
-};
 
 class Config {
 public:

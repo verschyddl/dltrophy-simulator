@@ -4,7 +4,7 @@
 
 #include <format>
 #include "TrophyShader.h"
-#include "shaderHelpers.h"
+#include "glHelpers.h"
 
 const std::string default_vertex_shader_path = "./shaders/vertex.glsl";
 const std::string default_fragment_shader_path = "./shaders/fragment.glsl";
@@ -55,10 +55,8 @@ void TrophyShader::teardown() {
     glDeleteBuffers(1, &vertexBufferObject);
     glDeleteBuffers(1, &stateBufferId);
     glDeleteBuffers(1, &definitionBufferId);
-    glDeleteFramebuffers(feedbackFramebuffers.object.size(), &feedbackFramebuffers.object[0]);
-    glDeleteTextures(feedbackFramebuffers.texture.size(), &feedbackFramebuffers.texture[0]);
-    glDeleteFramebuffers(1, &bloomFramebuffer.object);
-    glDeleteTextures(1, &bloomFramebuffer.texture);
+    feedbackFramebuffers.teardown();
+    ledsOnly.teardown();
 }
 
 void TrophyShader::onRectChange(Size resolution, const Config& config) {
@@ -215,27 +213,26 @@ void TrophyShader::initVertices() {
 }
 
 static inline void attachFramebufferFloatTexture(
-        GLuint fbo,
         GLuint textureId,
-        Rect rect,
-        GLuint colorAttachment
+        GLuint colorAttachment,
+        Rect rect
 ) {
     glBindTexture(GL_TEXTURE_2D, textureId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    // the resolution must include the origin shift, I suppose.
     glTexImage2D(GL_TEXTURE_2D,
                  0,
                  GL_RGBA32F,
-                 rect.width + rect.x,
-                 rect.height + rect.y,
+                 // the resolution must include the origin shift, I suppose.
+                 // i.e. has unused space from (0,0) to (rect.x, rect.y):
+                 rect.maxX(),
+                 rect.maxY(),
                  0,
                  GL_RGBA,
                  GL_FLOAT,
                  nullptr);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER,
                            colorAttachment,
                            GL_TEXTURE_2D,
@@ -244,34 +241,25 @@ static inline void attachFramebufferFloatTexture(
 }
 
 void TrophyShader::initFramebuffers(const Rect& rect) {
-    // First the two for the Feedback Ping-Pong:
-    const int n = feedbackFramebuffers.object.size();
-    glDeleteFramebuffers(n, &feedbackFramebuffers.object[0]);
-    glDeleteTextures(n, &feedbackFramebuffers.texture[0]);
-    glGenTextures(n, &feedbackFramebuffers.texture[0]);
-    glGenFramebuffers(n, &feedbackFramebuffers.object[0]);
+    feedbackFramebuffers.initialize();
+    glDeleteTextures(2, &extraOutputTexture[0]);
+    glGenTextures(2, &extraOutputTexture[0]);
 
-    for (int i = 0; i < n; i++) {
-        attachFramebufferFloatTexture(feedbackFramebuffers.object[i],
-                                      feedbackFramebuffers.texture[i],
-                                      rect,
-                                      GL_COLOR_ATTACHMENT0);
-        feedbackFramebuffers.status[i] = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    for (int i = 0; i < 2; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.fbo[i]);
+        attachFramebufferFloatTexture(feedbackFramebuffers.texture[i],
+                                      feedbackFramebuffers.attachment,
+                                      rect);
         feedbackFramebuffers.assertStatus(i);
     }
 
-    // Now the one for the Bloom Effect / Glowing LEDs:
-    glDeleteFramebuffers(1, &bloomFramebuffer.object);
-    glDeleteTextures(1, &bloomFramebuffer.texture);
-    glGenTextures(1, &bloomFramebuffer.texture);
-    glGenFramebuffers(1, &bloomFramebuffer.object);
+    ledsOnly.initialize();
 
-    attachFramebufferFloatTexture(bloomFramebuffer.object,
-                                  bloomFramebuffer.texture,
-                                  rect,
-                                  GL_COLOR_ATTACHMENT0);
-    bloomFramebuffer.status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    bloomFramebuffer.assertStatus();
+    glBindFramebuffer(GL_FRAMEBUFFER, ledsOnly.fbo);
+    attachFramebufferFloatTexture(ledsOnly.texture,
+                                  ledsOnly.attachment,
+                                  rect);
+    ledsOnly.assertStatus();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -377,17 +365,16 @@ void TrophyShader::render() {
 
     iBloomImage.set(1);
     iPass.set(ONLY_LEDS_PASS);
-    glBindFramebuffer(GL_FRAMEBUFFER, bloomFramebuffer.object);
+    glBindFramebuffer(GL_FRAMEBUFFER, ledsOnly.fbo);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, bloomFramebuffer.texture);
+    glBindTexture(GL_TEXTURE_2D, ledsOnly.texture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     auto order = feedbackFramebuffers.getOrderAndAdvance();
 
-
     iPreviousImage.set(0);
     iPass.set(SCENE_PASS);
-    glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.object[order.first]);
+    glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, feedbackFramebuffers.texture[order.second]);
     glDrawArrays(GL_TRIANGLES, 0, 6);

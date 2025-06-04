@@ -118,6 +118,7 @@ void SimulatorApp::run() {
         glfwPollEvents();
         handleResize();
         buildControlPanel();
+        handleMouseInput();
 
         handleTime();
 
@@ -125,13 +126,13 @@ void SimulatorApp::run() {
         shader->iTime.set(currentTime);
         shader->iFrame.set(currentFrame);
         shader->iFPS.set(averageFps);
+        shader->iMouse.set();
         shader->render();
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
 
-        handleMouseInput();
         handleUdpMessages();
 
         shader->mightHotReload(config);
@@ -216,18 +217,34 @@ void SimulatorApp::initializeKeyMap() {
     }};
 }
 
-const bool debugMouse = false;
-
 void SimulatorApp::handleMouseInput() {
-    // NOTE: there is no need for this function yet,
-    // as everything mouse-ish is handled by ImGui
+    const double meansUnset = -1.;
 
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
+    // glfw convention is upside-down
+    mouseY = area.height - mouseY;
+
+    if (outsideVec4Rect(mouseX, mouseY, shader->iRect.value)) {
+        mouseX = mouseY = meansUnset;
+    }
+    shader->iMouse.value.x = mouseX;
+    shader->iMouse.value.y = mouseY;
 
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-        if (debugMouse) {
-            std::cout << "Mouse Down Left @ (" << mouseX << ", " << mouseY << ")" << std::endl;
+        if (shader->iMouse.value.z == meansUnset || shader->iMouse.value.w == meansUnset) {
+            shader->iMouse.value.z = mouseX;
+            shader->iMouse.value.w = mouseY;
+
+            if (mouseX != meansUnset && mouseY != meansUnset) {
+                shader->shouldReadExtraOutputs = true;
+            }
+        }
+    } else {
+        if (!shader->shouldReadExtraOutputs && shader->readingFromPingIndex < 0) {
+            // TODO: for now, this keeps the coordinates until extraOutputs are read.
+            shader->iMouse.value.z = meansUnset;
+            shader->iMouse.value.w = meansUnset;
         }
     }
 }
@@ -427,7 +444,7 @@ void SimulatorApp::buildControlPanel() {
                            0.001f, 10.f);
         ImGui::SliderFloat("Background Spin",
                            &state->params.backgroundSpin,
-                           0.f, 50.f);
+                           0.f, 10.f);
         ImGui::SliderFloat("Synthwave Floor Level",
                            &state->params.floorLevel,
                            -10.f, 5.f);
@@ -476,7 +493,7 @@ void SimulatorApp::buildControlPanel() {
 
         ImGui::SliderFloat("Pyramid Epoxy Permittivity",
                            &state->params.epoxyPermittivity,
-                           0.01f, 300.f);
+                           0.01f, 10.f);
 
     }
 
@@ -538,7 +555,7 @@ void SimulatorApp::printDebug() const {
 
     if (lastMessage.has_value()) {
         auto timestamp = UdpInterpreter::formatTime(*lastMessage);
-        std::cout << "Last UDP Message from " << lastMessage->source
+        std::cout << "[Last UDP Message] from " << lastMessage->source
                   << " at " << timestamp << std::endl
                   << "Protocol: " << (lastMessage->protocol == RealtimeProtocol::DRGB ? "DRGB" : "WARLS");
         if (lastMessage->timeoutSec.has_value()) {
@@ -552,7 +569,7 @@ void SimulatorApp::printDebug() const {
                       << led.b << std::endl;
         }
     } else {
-        std::cout << "UDP MESSAGES? nothing received yet." << std::endl;
+        std::cout << "[Last UDP Message] None received yet." << std::endl;
     }
 
 }

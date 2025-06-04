@@ -13,11 +13,9 @@
 #include <glad/gl.h>
 #include <glm/vec2.hpp>
 
-#include "shaderHelpers.h"
+#include "glHelpers.h"
 #include "Config.h"
 #include "ShaderState.h"
-
-using AnyUniform = std::variant<Uniform<float>, Uniform<int>, Uniform<glm::vec4>>;
 
 class TrophyShader {
 
@@ -41,9 +39,18 @@ private:
     GLuint definitionBufferId = 0;
     void initUniformBuffers();
 
-    FramebufferPingPong feedbackFramebuffers;
-    Framebuffer bloomFramebuffer = Framebuffer("LEDs/Bloom");
+    FramebufferPingPong feedbackFramebuffers{};
+    Framebuffer ledsOnly{};
     void initFramebuffers(const Rect& rect);
+    ExtraOutputs extraOutputs{};
+    GLuint extraOutputTexture[2];
+    void handleExtraOutputs(int pingIndex);
+
+    static constexpr GLenum extraOutputAttachment = GL_COLOR_ATTACHMENT1;
+    static constexpr GLenum drawBuffers[] = {
+            GL_COLOR_ATTACHMENT0,
+            extraOutputAttachment,
+    };
 
 public:
     TrophyShader(const Config& config, ShaderState *state);
@@ -72,6 +79,10 @@ public:
     Uniform<int> iBloomImage = Uniform<int>("iBloomImage");
 
     void updateLedPositions() const;
+
+    bool shouldReadExtraOutputs = false;
+    int readingFromPingIndex = -1;
+    int readInFrames = 0;
 };
 
 #endif //DLTROPHY_SIMULATOR_TROPHYSHADER_H

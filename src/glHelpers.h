@@ -2,8 +2,8 @@
 // Created by qm210 on 13.05.2025.
 //
 
-#ifndef DLTROPHY_SIMULATOR_SHADERHELPERS_H
-#define DLTROPHY_SIMULATOR_SHADERHELPERS_H
+#ifndef DLTROPHY_SIMULATOR_GLHELPERS_H
+#define DLTROPHY_SIMULATOR_GLHELPERS_H
 
 #include <utility>
 #include <variant>
@@ -125,7 +125,7 @@ public:
         } else if constexpr (std::is_same_v<T, glm::vec4>) {
             glUniform4f(location, value.x, value.y, value.z, value.w);
         } else {
-            throw std::runtime_error("Uniform.set() called for undefined type");
+            throw std::runtime_error("Uniform.readFrom() called for undefined type");
         }
     }
 
@@ -149,18 +149,29 @@ public:
 };
 
 struct Framebuffer {
-    GLuint object;
+    GLuint fbo;
     GLuint texture;
     GLenum status;
-    std::string label;
+    GLenum attachment = GL_COLOR_ATTACHMENT0;
+    std::string debugLabel;
 
-    explicit Framebuffer(const std::string& label): label(std::move(label)) {}
+    virtual void initialize() {
+        teardown();
+        glGenFramebuffers(1, &fbo);
+        glGenTextures(1, &texture);
+    }
 
-    void assertStatus() const {
+    virtual void teardown() {
+        glDeleteFramebuffers(1, &fbo);
+        glDeleteTextures(1, &texture);
+    }
+
+    void assertStatus() {
+        status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
             throw std::runtime_error(std::format(
                     "Error in Framebuffer \"{}\": {} ({})",
-                    label, StatusMessages.at(status), status
+                    debugLabel, StatusMessages.at(status), status
             ));
         }
     }
@@ -170,23 +181,51 @@ struct Framebuffer {
             {GL_FRAMEBUFFER_UNDEFINED, "Framebuffer undefined"},
             {GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT, "Framebuffer incomplete attachment"},
             {GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT, "Framebuffer incomplete missing attachment"},
-            {GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER, "Framebuffer incomplete draw buffer"},
-            {GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER, "Framebuffer incomplete read buffer"},
+            {GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER, "Framebuffer incomplete draw pbo"},
+            {GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER, "Framebuffer incomplete read pbo"},
             {GL_FRAMEBUFFER_UNSUPPORTED, "Framebuffer unsupported"},
             {GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE, "Framebuffer incomplete multisample"},
             {GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS, "Framebuffer incomplete layer targets"}
     };
+};
 
+struct PixelPackFramebuffer : public Framebuffer {
+    GLuint pbo;
+
+    void initialize() {
+        teardown();
+        Framebuffer::initialize();
+        glGenBuffers(1, &pbo);
+    }
+
+    void teardown() {
+        Framebuffer::teardown();
+        glDeleteBuffers(1, &pbo);
+    }
 };
 
 struct FramebufferPingPong {
     static const int N = 2;
-    std::array<GLuint, N> object{};
+    std::array<GLuint, N> fbo{};
     std::array<GLuint, N> texture{};
     std::array<GLenum, N> status{};
+    GLenum attachment = GL_COLOR_ATTACHMENT0;
+    std::array<GLuint, N> pbo{};
     int pingCursor = 0;
 
     FramebufferPingPong() = default;
+
+    void teardown() {
+        glDeleteFramebuffers(N, &fbo[0]);
+        glDeleteTextures(N, &texture[0]);
+        glDeleteBuffers(N, &pbo[0]);
+    }
+
+    void initialize() {
+        glGenTextures(N, &texture[0]);
+        glGenFramebuffers(N, &fbo[0]);
+        glGenBuffers(N, &pbo[0]);
+    }
 
     std::pair<GLuint, GLuint> getOrderAndAdvance() {
         auto pongCursor = (pingCursor + 1) % N;
@@ -195,7 +234,8 @@ struct FramebufferPingPong {
         return result;
     }
 
-    void assertStatus(int i) const {
+    void assertStatus(int i) {
+        status[i] = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status[i] != GL_FRAMEBUFFER_COMPLETE) {
             throw std::runtime_error(std::format(
                     "Error in Ping Pong Framebuffer {}: {} ({})",
@@ -205,4 +245,4 @@ struct FramebufferPingPong {
     }
 };
 
-#endif //DLTROPHY_SIMULATOR_SHADERHELPERS_H
+#endif //DLTROPHY_SIMULATOR_GLHELPERS_H
