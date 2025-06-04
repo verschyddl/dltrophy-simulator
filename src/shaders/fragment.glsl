@@ -528,8 +528,8 @@ void postProcess(inout vec3 col, in vec2 uv, in vec2 st) {
 
 void main() {
     // this is a debug value to signal we actually were called, and currently.
-    extraOutput.x = 17.3417;
-    extraOutput.y = iTime;
+    extraOutput.x = 1.;
+    extraOutput.y = -1.;
 
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;
 
@@ -570,16 +570,17 @@ void main() {
     ray = Ray(ro, rd);
     hit = traceScene(ray);
 
+    bool clicked = distance(iMouse.zw, gl_FragCoord.xy) < 1.;
+    if (clicked && hit.material == LED_MATERIAL) {
+        extraOutput.y = 31. + float(hit.ledIndex);
+    }
+    extraOutput.z = iMouse.z - gl_FragCoord.x;
+    extraOutput.w = iMouse.w - gl_FragCoord.y;
+
     if (onlyLeds) {
         fragColor.rgb = hit.color;
         return;
     }
-
-    bool clicked = distance(iMouse.zw, gl_FragCoord.xy) < 1.;
-    int clickedLedIndex = clicked ? hit.ledIndex : -1;
-    extraOutput.y = float(clickedLedIndex);
-    extraOutput.z = iMouse.z - gl_FragCoord.x;
-    extraOutput.w = 1.47 + iMouse.w - gl_FragCoord.y;
 
     float fogMixing = exp(-fogScaling * pow(abs(hit.sd), fogGrading));
     col = mix(fragColor.rgb, hit.color, fogMixing);

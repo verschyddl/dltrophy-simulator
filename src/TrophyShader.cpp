@@ -64,9 +64,10 @@ void TrophyShader::teardown() {
 void TrophyShader::onRectChange(Size resolution, const Config& config) {
     auto rect = config.shaderRect(resolution);
     iRect.value = glm::vec4(rect.x, rect.y, rect.width, rect.height);
-    glViewport(rect.x, rect.y, rect.width, rect.height);
     initVertices();
     initFramebuffers(rect);
+    extraOutputs.initialize(rect);
+    glViewport(rect.x, rect.y, rect.width, rect.height);
 }
 
 void TrophyShader::reload(const Config& config) {
@@ -234,6 +235,8 @@ void TrophyShader::initFramebuffers(const Rect& rect) {
                                       extraOutputAttachment,
                                       size);
         feedbackFramebuffers.assertStatus(i);
+
+        glDrawBuffers(2, drawBuffers);
     }
 
     ledsOnly.initialize();
@@ -351,27 +354,27 @@ void TrophyShader::render() {
     fillStateUniformBuffer(state);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+    glActiveTexture(GL_TEXTURE1);
     iBloomImage.set(1);
     iPass.set(ONLY_LEDS_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, ledsOnly.fbo);
-    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, ledsOnly.texture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // auto order = feedbackFramebuffers.getOrderAndAdvance();
     auto order = feedbackFramebuffers.getOrder();
 
+    glActiveTexture(GL_TEXTURE0);
     iPreviousImage.set(0);
     iPass.set(SCENE_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
     glDrawBuffers(2, drawBuffers);
-    glActiveTexture(GL_TEXTURE0);
     // glBindTexture(GL_TEXTURE_2D, feedbackFramebuffers.texture[order.second]);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // benchmark: do not use Ping Pong -> but plainly copy texture
     // -> gave me (8 \pm 0.3) FPS
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
+    // glBindFramebuffer(GL_READ_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
     glReadBuffer(GL_COLOR_ATTACHMENT0);
     glBindTexture(GL_TEXTURE_2D, debugTexture);
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0,
@@ -380,7 +383,26 @@ void TrophyShader::render() {
                         iRect.value.z, iRect.value.w
                         );
 
-    // TODO: add extraOutputTextures
+    if (shouldReadExtraOutputs) {
+        shouldReadExtraOutputs = false;
+
+        glFinish();
+        glFlush();
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, feedbackFramebuffers.fbo[order.first]);
+        glReadBuffer(extraOutputAttachment);
+        auto r = extraOutputs.rect();
+        glReadPixels(r.x, r.y,
+                     r.width, r.height,
+                     GL_RGBA,
+                     GL_FLOAT,
+                     extraOutputs.data()
+                     );
+
+        extraOutputs.interpretValues(extraOutputs.data(),
+                                     iMouse.value,
+                                     iTime.value
+                                     );
+    }
 
     iPass.set(POST_PASS);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

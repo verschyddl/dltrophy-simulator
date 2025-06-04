@@ -183,57 +183,43 @@ public:
         clickedLedIndex_ = std::nullopt;
     }
 
-    void interpretValues(void* data, glm::vec4 iMouse, float time) {
-        float* values = static_cast<float*>(data);
-        glm::vec4* vecValues = static_cast<glm::vec4*>(data);
-//        auto size = values.size();
-//        values = std::vector<float>(floatData, floatData + size);
-
+    void interpretValues(void* buffer, glm::vec4 iMouse, float time) {
+        glm::vec4* vecValues = reinterpret_cast<glm::vec4*>(buffer);
         clickedLedIndex_ = std::nullopt;
-        int index = 0;
-        for (int iy = 0; iy < height(); iy++)
-            for (int ix = 0; ix < width(); ix++) {
 
-                auto testVec4 = vecValues[index];
+        float testSum = 0.;
+        int rangeMinX = 10000;
+        int rangeMaxX = -1;
+        int rangeMinY = 10000;
+        int rangeMaxY = -1;
+        int rangeMinLedIndex = 10000;
+        int rangeMaxLedIndex = -10000;
+        for (int iy = 0; iy < rect_.height; iy++) {
+            for (int ix = 0; ix < rect_.width; ix++) {
+                auto index = ix + rect_.width * iy;
+                auto value = vecValues[index];
+                testOutput_[index] = value.x;
+                testSum += testOutput_[index];
 
-                auto valueX = values[4*index];
-                auto valueY = values[4*index+1];
-                auto valueZ = values[4*index+2];
-                auto valueW = values[4*index+3];
+                if (value.x != 0.) {
+                    // std::cout << "Woah! " << ix << ", " << iy << " = " << thing << std::endl;
+                    rangeMinX = std::min(rangeMinX, ix);
+                    rangeMaxX = std::max(rangeMaxX, ix);
+                    rangeMinY = std::min(rangeMinY, iy);
+                    rangeMaxY = std::max(rangeMaxY, iy);
 
-                if (abs(ix - iMouse.z) < 1 && abs(iy - iMouse.w) < 1) {
-                    std::cout << "Values @ Cursor: "
-                              << valueX << ", "
-                              << valueY << ", "
-                              << valueZ << ", "
-                              << valueW
-                              << " -- " << ix << " ~ " << iMouse.z << "; " << iy << " ~ " << iMouse.w
-                              << std::endl;
+                    if (value.y != noLedClicked) {
+                        auto ledIndex = static_cast<int>(value.y);
+                        clickedLedIndex_ = static_cast<int>(value.y);
+                        rangeMinLedIndex = std::min(rangeMinLedIndex, ledIndex);
+                        rangeMaxLedIndex = std::max(rangeMaxLedIndex, ledIndex);
+                    }
                 }
-
-                testOutput_[index] = valueX;
-                if (testOutput_[index] == 0.f) {
-                    // this means the main() has not be called on this value
-                    continue;
-                }
-
-                if (valueY != noLedClicked) {
-                    clickedLedIndex_ = static_cast<int>(valueY);
-                }
-
-                std::cout << "    [HARDCORE DEBUG] "
-                          << std::setw(3) << ix << " "
-                          << std::setw(3) << iy << " ("
-                          << valueX << ", "
-                          << valueY << ", "
-                          << valueZ << ", "
-                          << valueW << ") "
-                          << std::endl;
-
-                index++;
+            }
         }
+        std::cout << "TEST SUM: " << testSum << std::endl;
 
-        std::cout << "  Time: " << time << " -- ";
+        std::cout << "  LedIndex: " << rangeMinLedIndex << " .. " << rangeMaxLedIndex << " -- ";
         print("Rect", rect_);
     }
 };
