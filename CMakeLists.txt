@@ -65,6 +65,8 @@ add_executable(${PROJECT_NAME}
         src/UdpInterpreter.h
         src/geometryHelpers.h
         src/debug.h
+        src/prototype/FX_compat.h
+        src/prototype/FX.h
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
