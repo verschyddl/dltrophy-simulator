@@ -5,7 +5,7 @@
 #ifndef DLTROPHY_SIMULATOR_GEOMETRYHELPERS_H
 #define DLTROPHY_SIMULATOR_GEOMETRYHELPERS_H
 
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 
 struct Size {
     int width;
@@ -43,5 +43,10 @@ struct RelativeRect {
     float x;
     float y;
 };
+
+template <typename numberType1, typename numberType2>
+static inline bool samePixel(numberType1 x1, numberType1 y1, numberType2 x2, numberType2 y2) {
+    return std::abs(x2 - x1) < .5 && std::abs(y2 -y1) < .5;
+}
 
 #endif //DLTROPHY_SIMULATOR_GEOMETRYHELPERS_H

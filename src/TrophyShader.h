@@ -46,7 +46,9 @@ private:
     ExtraOutputs extraOutputs{};
     GLuint extraOutputTexture[2];
     void handleExtraOutputs(int pingIndex);
-    static constexpr GLenum extraOutputAttachment = GL_COLOR_ATTACHMENT1;
+
+    static constexpr GLenum extraOutputAttachment =
+            GL_COLOR_ATTACHMENT1;
     static constexpr GLenum drawBuffers[] = {
             GL_COLOR_ATTACHMENT0,
             extraOutputAttachment,

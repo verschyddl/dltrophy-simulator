@@ -222,7 +222,8 @@ void SimulatorApp::handleMouseInput() {
 
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
-    // glfw convention is upside-down
+    // make window convention match shader coordinates
+    mouseX = mouseX;
     mouseY = area.height - mouseY;
 
     if (outsideVec4Rect(mouseX, mouseY, shader->iRect.value)) {
@@ -412,7 +413,10 @@ void SimulatorApp::buildControlPanel() {
 
         ImGui::SliderFloat("LED size",
                            &state->params.ledSize,
-                           1.e-3, 1.e-1);
+                           1.e-3, 3.e-2);
+        ImGui::SliderFloat("LED glow",
+                           &state->params.ledGlow,
+                           0.01, 30.);
     }
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -529,7 +533,7 @@ void SimulatorApp::buildControlPanel() {
                         &state->options.accumulateForever);
         ImGui::Checkbox("No Stochastic Variation (indeed a bit nonsense)",
                         &state->options.noStochasticVariation);
-        ImGui::Checkbox("Only Pyramid Frame (work in progress...)",
+        ImGui::Checkbox("Only Pyramid Frame",
                         &state->options.onlyPyramidFrame);
     }
 

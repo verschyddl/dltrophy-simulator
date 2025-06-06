@@ -235,18 +235,18 @@ float sdLineSegment(vec3 p, vec3 a, vec3 b) {
     return length(p - closest);
 }
 
-float sdPyramidFrame(vec3 p, float h, float b) {
+float sdPyramidFrame(vec3 p) {
+    const float b = 0.5;
     vec3 v1 = vec3( b, 0,  b);
     vec3 v2 = vec3(-b, 0,  b);
     vec3 v3 = vec3(-b, 0, -b);
     vec3 v4 = vec3( b, 0, -b);
-    vec3 apex = vec3(0, h, 0);
-
     float d1 = sdLineSegment(p, v1, v2);
     float d2 = sdLineSegment(p, v2, v3);
     float d3 = sdLineSegment(p, v3, v4);
     float d4 = sdLineSegment(p, v4, v1);
 
+    vec3 apex = vec3(0, pyramidHeight, 0);
     float d5 = sdLineSegment(p, apex, v1);
     float d6 = sdLineSegment(p, apex, v2);
     float d7 = sdLineSegment(p, apex, v3);
@@ -255,22 +255,16 @@ float sdPyramidFrame(vec3 p, float h, float b) {
     float frameDist = min(min(min(d1, d2), min(d3, d4)),
     min(min(d5, d6), min(d7, d8)));
 
-    return frameDist - 0.005; // <-- frame thickness
+    return frameDist - 0.0025; // <-- frame thickness
 }
 
 mat3 pyramidRotation = rotateY(pyramidAngle + pyramidAngularVelocity * iTime);
+mat3 pyramidCounterRotation = rotateY(-pyramidAngle - pyramidAngularVelocity * iTime);
 
 // thanks iq https://iquilezles.org/articles/distfunctions/
 float sdPyramid( vec3 p )
 {
     float h = pyramidHeight;
-    p -= vec3(pyramidX, pyramidY, pyramidZ);
-    p *= pyramidRotation / pyramidScale;
-
-    if (onlyPyramidFrame) {
-        return sdPyramidFrame(p, pyramidHeight, 0.5);
-    }
-
     float m2 = h*h + 0.25;
 
     p.xz = abs(p.xz);
@@ -290,28 +284,46 @@ float sdPyramid( vec3 p )
 
 // RAY MARCHING / TRACING
 
+bool updatedHit(inout Marched hit, float sd) {
+    if (sd < hit.sd) {
+        hit.sd = sd;
+        return true;
+    }
+    return false;
+}
+
 Marched sdScene(vec3 p) {
     Marched hit = sdFloor(p);
     float sd;
 
-    if (!onlyLeds) {
-        sd = sdPyramid(p);
-        if (sd < hit.sd) {
-            hit.sd = sd;
-            hit.material = onlyPyramidFrame ? PYRAMID_FRAME_MATERIAL : PYRAMID_MATERIAL;
-        }
-    }
-
     p *= pyramidRotation;
     for (int i = 0; i < nLeds; i++) {
         sd = sdSphere(p, ledPosition[i].xyz, ledSize);
-        if (sd < hit.sd) {
-            hit.sd = sd;
+        if (updatedHit(hit, sd)) {
             hit.ledIndex = i;
         }
     }
     if (hit.ledIndex >= 0) {
         hit.material = LED_MATERIAL;
+        extraOutput.y = float(hit.ledIndex); // cf. below "extraOutput"
+    }
+    if (onlyLeds) {
+        return hit;
+    }
+
+    p -= vec3(pyramidX, pyramidY, pyramidZ);
+    p *= 1. / pyramidScale;
+    sd = sdPyramidFrame(p);
+    if (onlyPyramidFrame) {
+        if (updatedHit(hit, sd)) {
+            hit.material = PYRAMID_FRAME_MATERIAL;
+        }
+        return hit;
+    }
+
+    sd = sdPyramid(p);
+    if (updatedHit(hit, sd)) {
+        hit.material = PYRAMID_MATERIAL;
     }
 
     return hit;
@@ -440,7 +452,19 @@ vec3 opaqueMaterial(Marched hit, vec3 ray) {
             return mix(dark, floorColor, g);
 
         case PYRAMID_MATERIAL:
-            return vec3(0.5, 0.0, 0.9);
+            float frameSd = sdPyramidFrame(ray);
+            vec3 base = mix(c.xxx, vec3(0.15, 0.0, 0.3), pow(frameSd, .15));
+            base = pow(base, c.xxx * 1.4);
+
+            vec3 lights = c.yyy;
+            for (int i = 0; i < nLeds; i++) {
+                float sd = distance(ray, ledPosition[i].xyz);
+                float w = exp(-ledGlow * sd);
+                lights += w * to_vec(ledColor[i]);
+            }
+            base += lights / float(nLeds);
+            return base;
+
         case PYRAMID_FRAME_MATERIAL:
             return vec3(0.62, 0.0, 1.);
 
@@ -474,11 +498,6 @@ Marched traceScene(Ray ray) {
         col *= attenuation * hit.color;
         ray = scatRay;
     }
-//    if (r == traceMaxRecursions) {
-//        // ... why did I do that, again?
-//        hit.material = MISS;
-//        hit.color = c.wyx; // some signal lilac :P
-//    }
     return hit;
 }
 
@@ -486,6 +505,7 @@ const float SAMPLE_COUNT = 32.;
 const float goldenPhi = 2.39996323;
 const float blurRadius = 4.8;
 const float inverseGaussWidth = 420.;
+const float blurMix = 0.6;
 
 vec3 blurredBloomImage(in vec2 st) {
     vec4 result = c.yyyy;
@@ -494,12 +514,16 @@ vec3 blurredBloomImage(in vec2 st) {
         float theta = s * goldenPhi;
         theta += 0.05 * hash1(globalSeed);
         vec2 offset = r * vec2(cos(theta), sin(theta));
-        r *= inverseGaussWidth;
+        r *= inverseGaussWidth * 0.01/ledSize;
         float weight = exp(-r * r);
         result.rgb += weight * texture(iBloomImage, st + offset).rgb;
         result.a += weight;
     }
-    return result.rgb / result.a;
+    return mix(
+        texture(iBloomImage, st).rgb,
+        result.rgb / result.a,
+        blurMix
+    );
 }
 
 const float postExposure = 1.2;
@@ -527,10 +551,6 @@ void postProcess(inout vec3 col, in vec2 uv, in vec2 st) {
 }
 
 void main() {
-    // this is a debug value to signal we actually were called, and currently.
-    extraOutput.x = 2.;
-    extraOutput.y = -1.;
-
     vec2 uv = (2. * (gl_FragCoord.xy - iRect.xy) - iResolution) / iResolution.y;
 
     // border frame
@@ -543,6 +563,9 @@ void main() {
         }
         return;
     }
+
+    extraOutput.x = 1.;   // signals us that we are in the frame
+    extraOutput.y = -1.;  // means "no LED index" (cf. below)
 
     fragColor = c.xxxy;
     vec3 col = fragColor.rgb;
@@ -570,13 +593,6 @@ void main() {
     ray = Ray(ro, rd);
     hit = traceScene(ray);
 
-    bool clicked = distance(iMouse.zw, gl_FragCoord.xy) < 1.;
-    if (clicked && hit.material == LED_MATERIAL) {
-        extraOutput.y = 31. + float(hit.ledIndex);
-    }
-    extraOutput.z = iMouse.z - gl_FragCoord.x;
-    extraOutput.w = iMouse.w - gl_FragCoord.y;
-
     if (onlyLeds) {
         fragColor.rgb = hit.color;
         return;
@@ -592,12 +608,15 @@ void main() {
 
     fragColor = vec4(clampVec3(col), 1.);
 
+    fragColor.b += exp(-20. * pow(gl_FragCoord.x - iMouse.z, 2.));
+
     // blend previous image
     vec2 st = (gl_FragCoord.xy) / (iResolution + iRect.xy);
     vec4 previousImage = texture(iPreviousImage, st);
 
     if (iPass == POST_PASS) {
         col = previousImage.rgb / previousImage.a;
+        col = max(col, fragColor.rgb);
         postProcess(col, uv, st);
         fragColor = vec4(col, 1.);
         return;
@@ -613,4 +632,11 @@ void main() {
 
     fragColor.rgb = mix(fragColor.rgb, previousImage.rgb, blendPreviousMixing);
     fragColor.a = 1.;
+
+    bool clicked = distance(iMouse.zw, gl_FragCoord.xy - iRect.xy) < 1.;
+    if (!clicked) {
+        // extraOutput.y must have been set somewhere above,
+        // but if not even clicked, reset to "nothing clicked".
+        extraOutput.y = -1.;
+    }
 }

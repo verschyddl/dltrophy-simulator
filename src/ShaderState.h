@@ -49,7 +49,7 @@ struct ShaderState {
 
     Parameters params {
         .ledSize = 0.015,
-        .ledGlow = 0.8,
+        .ledGlow = 8.,
         .camX = 0.,
         .camY = 0.17,
         .camZ = -1.8,
@@ -192,19 +192,19 @@ public:
         int rangeMinLedIndex = 10000;
         int rangeMaxLedIndex = -10000;
 
-        for (int iy = 0; iy < rect_.height; iy++) {
-            for (int ix = 0; ix < rect_.width; ix++) {
-                auto index = ix + rect_.width * iy;
+        for (int y = 0; y < rect_.height; y++) {
+            for (int x = 0; x < rect_.width; x++) {
+                auto index = x + rect_.width * y;
                 auto value = vecValues[index];
                 testOutput_[index] = value.x;
                 testSum += testOutput_[index];
 
                 if (value.x != 0.) {
-                    // std::cout << "Woah! " << ix << ", " << iy << " = " << thing << std::endl;
-                    rangeMinX = std::min(rangeMinX, ix);
-                    rangeMaxX = std::max(rangeMaxX, ix);
-                    rangeMinY = std::min(rangeMinY, iy);
-                    rangeMaxY = std::max(rangeMaxY, iy);
+                    // std::cout << "Woah! " << x << ", " << y << " = " << thing << std::endl;
+                    rangeMinX = std::min(rangeMinX, x);
+                    rangeMaxX = std::max(rangeMaxX, x);
+                    rangeMinY = std::min(rangeMinY, y);
+                    rangeMaxY = std::max(rangeMaxY, y);
 
                     if (value.y != noLedClicked) {
                         auto ledIndex = static_cast<int>(value.y);
@@ -212,6 +212,12 @@ public:
                         rangeMinLedIndex = std::min(rangeMinLedIndex, ledIndex);
                         rangeMaxLedIndex = std::max(rangeMaxLedIndex, ledIndex);
                     }
+                }
+
+                if (samePixel(x, y, iMouse.z, iMouse.w)) {
+                        std::cout << "Cursor: " << iMouse.z
+                                  << ", " << iMouse.w << "; ";
+                        print("ExtraOutput", value);
                 }
             }
         }

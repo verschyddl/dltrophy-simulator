@@ -1,6 +1,6 @@
 ### trying to make it minimal
 Dependencies
-* OpenGL (+ GLAD + glm)
+* OpenGL 3.3 (+ GLAD + glm)
 * glfw
 * Dear ImGui
 * MinimalSocket (low-weight abstraction)
