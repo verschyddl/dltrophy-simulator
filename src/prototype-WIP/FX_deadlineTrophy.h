@@ -1,6 +1,6 @@
 #pragma once
 
-#include "FX_compat.h"
+#include "FX.h"
 
 // bla bla bla quickficks
 uint16_t mode_static(void);

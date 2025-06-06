@@ -65,8 +65,14 @@ add_executable(${PROJECT_NAME}
         src/UdpInterpreter.h
         src/geometryHelpers.h
         src/debug.h
-        src/prototype/FX_compat.h
-        src/prototype/FX.h
+        src/prototype-WIP/compat/compat.h
+        src/prototype-WIP/compat/FX.h
+        src/prototype-WIP/compat/pixeltypes.h
+        src/prototype-WIP/compat/lib8tion_compat.h
+        src/prototype-WIP/compat/colorutils_compat.h
+        src/prototype-WIP/compat/bus_compat.h
+        src/prototype-WIP/compat/bus_manager_compat.h
+        src/prototype-WIP/Prototyper.h
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -84,6 +90,8 @@ target_include_directories(${PROJECT_NAME}
         # PUBLIC ${glm_SOURCE_DIR} # <-- #include <glm/glm.hpp> still invalid?
         PUBLIC ${imgui_SOURCE_DIR}
         PUBLIC ${imgui_SOURCE_DIR}/backends
+
+        PUBLIC src/prototype-WIP/compat
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
