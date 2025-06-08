@@ -44,6 +44,8 @@ layout(std140) uniform StateBuffer {
     float blendPreviousMixing;
     float traceMinDistance, traceMaxDistance, traceFixedStep;
     int traceMaxSteps, traceMaxRecursions;
+    float ledBlurSamples, ledBlurRadius, ledBlurPrecision,
+          ledBlurMixing;
     int options;
 };
 
@@ -501,20 +503,16 @@ Marched traceScene(Ray ray) {
     return hit;
 }
 
-const float SAMPLE_COUNT = 32.;
 const float goldenPhi = 2.39996323;
-const float blurRadius = 4.8;
-const float inverseGaussWidth = 420.;
-const float blurMix = 0.6;
 
 vec3 blurredBloomImage(in vec2 st) {
     vec4 result = c.yyyy;
-    for (float s = 0.; s < SAMPLE_COUNT; s+= 1.) {
-        float r = blurRadius * sqrt((s + 0.5) / SAMPLE_COUNT) * 1./iResolution.y;
+    for (float s = 0.; s < ledBlurSamples; s+= 1.) {
+        float r = ledBlurRadius * sqrt((s + 0.5) / ledBlurSamples) * 1./iResolution.y;
         float theta = s * goldenPhi;
-        theta += 0.05 * hash1(globalSeed);
+        // theta += 0.05 * hash1(globalSeed);
         vec2 offset = r * vec2(cos(theta), sin(theta));
-        r *= inverseGaussWidth * 0.01/ledSize;
+        r *= ledBlurPrecision * 0.01/ledSize;
         float weight = exp(-r * r);
         result.rgb += weight * texture(iBloomImage, st + offset).rgb;
         result.a += weight;
@@ -522,7 +520,7 @@ vec3 blurredBloomImage(in vec2 st) {
     return mix(
         texture(iBloomImage, st).rgb,
         result.rgb / result.a,
-        blurMix
+        ledBlurMixing
     );
 }
 

@@ -14,7 +14,7 @@ using nlohmann::json;
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
         ShaderOptions,
         showGrid, accumulateForever, noStochasticVariation, onlyPyramidFrame
-    )
+)
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
         Parameters,
@@ -26,9 +26,10 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
         pyramidScale, pyramidHeight,
         pyramidAngle, pyramidAngularVelocity,
         epoxyPermittivity, blendPreviousMixing,
-        traceMinDistance, traceMaxDistance,
-        traceMaxSteps, traceMaxRecursions
-    )
+        traceMinDistance, traceMaxDistance, traceFixedStep,
+        traceMaxSteps, traceMaxRecursions,
+        ledBlurSamples, ledBlurRadius, ledBlurPrecision, ledBlurMixing
+)
 
 inline void overwrite_if_path_exists(int opt, int targetOpt, std::string& target) {
     if (opt != targetOpt) {
@@ -201,6 +202,13 @@ void Config::store(GLFWwindow* window, ShaderState* state) const {
     }
 }
 
+template <typename Type>
+static inline void setIfZero(Type& value, Type defaultValue) {
+    if (value == 0) {
+        value = defaultValue;
+    }
+}
+
 void Config::restore(ShaderState* state) {
     if (!wasRead() && !tryReadFile()) {
         std::cerr << "Could not restore state, because could not read file." << std::endl;
@@ -208,7 +216,8 @@ void Config::restore(ShaderState* state) {
     }
     if (currentJson->contains("params")) {
         auto paramsJson = currentJson->at("params");
-        state->params = paramsJson.get<Parameters>();
+        auto params = paramsJson.get<Parameters>();
+        state->params = params;
     }
 
     if (currentJson->contains("options")) {

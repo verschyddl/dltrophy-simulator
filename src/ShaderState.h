@@ -40,6 +40,11 @@ struct Parameters {
     float blendPreviousMixing;
     float traceMinDistance, traceMaxDistance, traceFixedStep;
     int traceMaxSteps, traceMaxRecursions;
+    float ledBlurSamples, ledBlurRadius, ledBlurPrecision,
+          ledBlurMixing;
+    // remember: what is added here, should be cared about
+    // - in Config.cpp -> NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Parameters, ...)
+    // - include default values in the current smiululator.config, if present
 };
 
 struct ShaderState {
@@ -74,17 +79,24 @@ struct ShaderState {
         .epoxyPermittivity = 1.6,
         .blendPreviousMixing = 0.35,
         .traceMinDistance = 1.e-3, // no reason to change
-        .traceMaxDistance = 60., // 100. should be enough.
+        .traceMaxDistance = 60., // past the pyramid, we trace the plane analytically anyway
         .traceFixedStep = 0.1,
         .traceMaxSteps = 40,
         .traceMaxRecursions = 6,
+        .ledBlurSamples = 32.,
+        .ledBlurRadius = 4.8,
+        .ledBlurPrecision = 420.,
+        .ledBlurMixing = 0.6,
     };
+
     ShaderOptions options {
         .showGrid = false,
         .accumulateForever = false,
         .noStochasticVariation = false,
         .onlyPyramidFrame = true,
     };
+
+    bool verbose = false;
 
     explicit ShaderState(Trophy* trophy):
         trophy(trophy),

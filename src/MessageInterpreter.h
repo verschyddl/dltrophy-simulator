@@ -2,8 +2,8 @@
 // Created by qm210 on 26.05.2025.
 //
 
-#ifndef DLTROPHY_SIMULATOR_UDPINTERPRETER_H
-#define DLTROPHY_SIMULATOR_UDPINTERPRETER_H
+#ifndef DLTROPHY_SIMULATOR_MESSAGEINTERPRETER_H
+#define DLTROPHY_SIMULATOR_MESSAGEINTERPRETER_H
 
 #include "LED.h"
 #include "UdpReceiver.h"
@@ -42,7 +42,7 @@ const std::unordered_map<RealtimeProtocol, size_t> protocolUnitSize{
 
 using AnyMessage = std::variant<ProtocolMessage, UnreadableMessage>;
 
-class UdpInterpreter {
+class MessageInterpreter {
 public:
 
     static AnyMessage interpret(const RawMessage& message) {
@@ -135,4 +135,4 @@ private:
     }
 };
 
-#endif //DLTROPHY_SIMULATOR_UDPINTERPRETER_H
+#endif //DLTROPHY_SIMULATOR_MESSAGEINTERPRETER_H

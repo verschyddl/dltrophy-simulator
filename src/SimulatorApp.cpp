@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include "SimulatorApp.h"
-#include "UdpInterpreter.h"
+#include "MessageInterpreter.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -195,6 +195,11 @@ void SimulatorApp::initializeKeyMap() {
             glfwSetWindowShouldClose(window, true);
         }
     }, {
+        GLFW_KEY_F1,
+        [this](int mods) {
+            toggle(state->verbose);
+        }
+    }, {
         GLFW_KEY_G,
         [this](int mods) {
             toggle(state->options.showGrid);
@@ -261,13 +266,19 @@ void SimulatorApp::handleUdpMessages() {
         return;
     }
 
-    auto message = UdpInterpreter::interpret(*packet);
+    auto message = MessageInterpreter::interpret(*packet);
 
     std::visit(
         [this](const auto& msg) {
             using T = std::decay_t<decltype(msg)>;
 
             if constexpr (std::is_same_v<T, ProtocolMessage>) {
+
+                if (state->verbose) {
+                    std::cout << "[Info]: Message from " << msg.timestamp
+                              << " by " << msg.source
+                              << std::endl;
+                }
 
                 for (const auto& [index, led]: msg.mapping) {
                     this->state->set(index, led, true);
@@ -276,7 +287,7 @@ void SimulatorApp::handleUdpMessages() {
                 }
 
             } else if constexpr (std::is_same_v<T, UnreadableMessage>) {
-                std::cerr << "[" << UdpInterpreter::formatTime(msg) << "][Debug Message] Unreadable: "
+                std::cerr << "[" << MessageInterpreter::formatTime(msg) << "][Debug Message] Unreadable: "
                         << msg.reason
                         << std::endl;
             }
@@ -558,7 +569,7 @@ void SimulatorApp::printDebug() const {
     std::cout << std::endl;
 
     if (lastMessage.has_value()) {
-        auto timestamp = UdpInterpreter::formatTime(*lastMessage);
+        auto timestamp = MessageInterpreter::formatTime(*lastMessage);
         std::cout << "[Last UDP Message] from " << lastMessage->source
                   << " at " << timestamp << std::endl
                   << "Protocol: " << (lastMessage->protocol == RealtimeProtocol::DRGB ? "DRGB" : "WARLS");

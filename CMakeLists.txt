@@ -27,6 +27,34 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 
+FetchContent_Declare(
+        json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG        v3.11.0
+)
+FetchContent_MakeAvailable(json)
+
+# uwebsockets requires zlib and uv (for all that's known...)
+FetchContent_Declare(
+        zlib
+        GIT_REPOSITORY https://github.com/madler/zlib.git
+)
+FetchContent_MakeAvailable(zlib)
+set(ZLIB_INCLUDE_DIR "${zlib_SOURCE_DIR}") #  CACHE PATH "Path to zlib include" ?
+set(ZLIB_LIBRARY zlibstatic) # or 'zlib' if building shared
+FetchContent_Declare(
+        libuv
+        GIT_REPOSITORY https://github.com/libuv/libuv.git
+        GIT_TAG        v1.x
+)
+FetchContent_MakeAvailable(libuv)
+FetchContent_Declare(
+        uwebsockets
+        GIT_REPOSITORY https://github.com/tony-go/cmake-uwebsockets.git
+        GIT_TAG        main
+)
+FetchContent_MakeAvailable(uwebsockets)
+
 # cf. https://github.com/andreacasalino/Minimal-Socket?tab=readme-ov-file#cmake-support
 set(BUILD_MinimalCppSocket_SAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
@@ -35,14 +63,6 @@ FetchContent_Declare(
         GIT_TAG        master
 )
 FetchContent_MakeAvailable(min_sock)
-
-FetchContent_Declare(
-        json
-        GIT_REPOSITORY https://github.com/nlohmann/json.git
-        GIT_TAG        v3.11.0
-)
-
-FetchContent_MakeAvailable(json)
 
 
 # copy the shader sources into the build
@@ -53,7 +73,6 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders
 
 add_executable(${PROJECT_NAME}
         src/main.cpp
-        src/UdpReceiver.h
         src/SimulatorApp.cpp
         src/SimulatorApp.h
         src/TrophyShader.cpp
@@ -61,10 +80,13 @@ add_executable(${PROJECT_NAME}
         src/Config.cpp
         src/Config.h
         src/Trophy.h
+        src/UdpReceiver.h
+        src/WebSocketService.h
+        src/MessageInterpreter.h
         src/inputHelpers.h
-        src/UdpInterpreter.h
         src/geometryHelpers.h
         src/debug.h
+
         src/prototype-WIP/compat/compat.h
         src/prototype-WIP/compat/FX.h
         src/prototype-WIP/compat/pixeltypes.h
@@ -85,21 +107,21 @@ target_sources(${PROJECT_NAME} PRIVATE
         ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 #        ${imgui_SOURCE_DIR}/imgui_demo.cpp
 )
-target_include_directories(${PROJECT_NAME}
-        PUBLIC thirdparty/glad/include
-        # PUBLIC ${glm_SOURCE_DIR} # <-- #include <glm/glm.hpp> still invalid?
-        PUBLIC ${imgui_SOURCE_DIR}
-        PUBLIC ${imgui_SOURCE_DIR}/backends
-
-        PUBLIC src/prototype-WIP/compat
+target_include_directories(${PROJECT_NAME} PUBLIC
+        thirdparty/glad/include
+        ${imgui_SOURCE_DIR}
+        ${imgui_SOURCE_DIR}/backends
+        ${libuv_SOURCE_DIR}/include
+        src/prototype-WIP/compat
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         glfw
         OpenGL::GL
         glm::glm
-        MinimalSocket
         nlohmann_json::nlohmann_json
+        uWebSockets
+        MinimalSocket
 )
 
 
