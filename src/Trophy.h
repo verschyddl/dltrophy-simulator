@@ -35,9 +35,9 @@ struct Trophy {
     std::array<bool, N_LEDS> isLogo{};
     std::array<bool, N_LEDS> isBase{};
 
-    glm::vec3 logoCenter = {0.1f, 0.0f, 0.f};
-    glm::vec2 logoSize = {0.5f, 0.2f};
-    glm::vec3 baseCenter = {0.f, -.3f, 0.f};
+    glm::vec3 logoCenter = {-0.175f, 0.262f, 0.f};
+    glm::vec2 logoSize = {0.5f, 0.375f};
+    glm::vec3 baseCenter = {0.f, -.35f, 0.f};
     float baseSize = 1.0f;
     glm::vec3 backLedPos{-0.05f, -0.1f, 0.02f};
     glm::vec3 floorLedPos{0.0f, -.35f, 0.f};
