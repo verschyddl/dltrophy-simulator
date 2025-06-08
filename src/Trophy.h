@@ -44,6 +44,8 @@ struct Trophy {
 
     glm::vec3 posMin{}, posMax{};
 
+    static const bool showSingleWhites = false; // enable when shader is more advanced
+
     Trophy() {
         rebuild();
     }
@@ -77,13 +79,18 @@ struct Trophy {
                     baseCenter.z + baseSize * relative.y
                 };
             }
-            else if (i == floorLedIndex) {
-                absolute = floorLedPos;
-            }
-            else if (i == backLedIndex) {
-                absolute = backLedPos;
-            } else {
-                std::cout << "[Trophy LED] Unclear what LED #" << i << " is supposed to be =/" << std::endl;
+            else {
+                if (!showSingleWhites) {
+                    break;
+                }
+                if (i == floorLedIndex) {
+                    absolute = floorLedPos;
+                }
+                else if (i == backLedIndex) {
+                    absolute = backLedPos;
+                } else {
+                    std::cout << "[Trophy LED] Unclear what LED #" << i << " is supposed to be =/" << std::endl;
+                }
             }
 
             position[i] = glm::vec4{

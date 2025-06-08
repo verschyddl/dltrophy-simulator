@@ -22,7 +22,7 @@ bool onlyLeds = iPass == ONLY_LEDS_PASS;
 const int nLeds = 172;
 
 layout(std140) uniform TrophyDefinition {
-    int _nLeds; // TODO: doesn't work - care about later
+    int nLedsActive;
     vec4 ledPosition[nLeds];
 };
 
@@ -299,7 +299,7 @@ Marched sdScene(vec3 p) {
     float sd;
 
     p *= pyramidRotation;
-    for (int i = 0; i < nLeds; i++) {
+    for (int i = 0; i < nLedsActive; i++) {
         sd = sdSphere(p, ledPosition[i].xyz, ledSize);
         if (updatedHit(hit, sd)) {
             hit.ledIndex = i;
@@ -459,12 +459,12 @@ vec3 opaqueMaterial(Marched hit, vec3 ray) {
             base = pow(base, c.xxx * 1.4);
 
             vec3 lights = c.yyy;
-            for (int i = 0; i < nLeds; i++) {
+            for (int i = 0; i < nLedsActive; i++) {
                 float sd = distance(ray, ledPosition[i].xyz);
                 float w = exp(-ledGlow * sd);
                 lights += w * to_vec(ledColor[i]);
             }
-            base += lights / float(nLeds);
+            base += lights / float(nLedsActive);
             return base;
 
         case PYRAMID_FRAME_MATERIAL:
