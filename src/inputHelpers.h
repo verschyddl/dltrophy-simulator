@@ -8,6 +8,7 @@
 #include <vector>
 #include <functional>
 #include <cstdint>
+#include <string>
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -65,6 +66,7 @@ namespace ImGuiHelper {
 
         return changed;
     }
+
 }
 
 #endif //DLTROPHY_SIMULATOR_INPUTHELPERS_H

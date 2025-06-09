@@ -5,7 +5,7 @@
 #ifndef DLTROPHY_SIMULATOR_MESSAGEINTERPRETER_H
 #define DLTROPHY_SIMULATOR_MESSAGEINTERPRETER_H
 
-#include "LED.h"
+#include "../LED.h"
 #include "UdpReceiver.h"
 #include <map>
 #include <optional>

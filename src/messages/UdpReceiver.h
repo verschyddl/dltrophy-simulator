@@ -6,7 +6,7 @@
 #define DLTROPHY_SIMULATOR_UDPRECEIVER_H
 
 #include <iostream>
-#include <MinimalSocket/udp/UdpSocket.h>
+#include "MinimalSocket/udp/UdpSocket.h"
 
 struct RawMessage {
     std::vector<int> values;

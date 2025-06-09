@@ -10,12 +10,13 @@
 #include <GLFW/glfw3.h>
 
 #include <string>
-#include "UdpReceiver.h"
 #include "ShaderState.h"
 #include "TrophyShader.h"
 #include "Config.h"
 #include "inputHelpers.h"
-#include "MessageInterpreter.h"
+#include "messages/UdpReceiver.h"
+#include "messages/MessageInterpreter.h"
+#include "messages/WebSocketListener.h"
 #include <imgui.h>
 
 class SimulatorApp {
@@ -65,7 +66,8 @@ private:
     ShaderState* state;
 
     UdpReceiver* receiver;
-    void handleUdpMessages();
+    WebSocketListener* listener;
+    void handleMessages();
     std::optional<ProtocolMessage> lastMessage;
 
     static void showError(const std::string & message);

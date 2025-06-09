@@ -80,9 +80,6 @@ float aspectRatio = iResolution.x / iResolution.y;
 
 vec3 draw_grid(in vec2 uv) {
     vec3 col = c.yyy;
-    if (!showGrid) {
-        return col;
-    }
     float thickness = 3.e-3;
     const float step = 0.1;
     uv = abs(uv);

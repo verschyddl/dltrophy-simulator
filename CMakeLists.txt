@@ -35,27 +35,36 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(json)
 
 # uwebsockets requires zlib and uv (for all that I know...)
+#FetchContent_Declare(
+#        zlib
+#        GIT_REPOSITORY https://github.com/madler/zlib.git
+#)
+#FetchContent_MakeAvailable(zlib)
+#set(ZLIB_INCLUDE_DIR "${zlib_SOURCE_DIR}")
+#set(ZLIB_LIBRARY zlibstatic)
+
+#FetchContent_Declare(
+#        libuv
+#        GIT_REPOSITORY https://github.com/libuv/libuv.git
+#        GIT_TAG        v1.51.0
+#)
+#FetchContent_MakeAvailable(libuv)
+#set(LIBUV_INCLUDE_DIR "${libuv_SOURCE_DIR}/include")
+#set(LIBUV_LIBRARY libuv_a)
+#FetchContent_Declare(
+#        cmake-uwebsockets
+#        GIT_REPOSITORY https://github.com/tony-go/cmake-uwebsockets.git
+#        GIT_TAG main
+#)
+#FetchContent_MakeAvailable(cmake-uwebsockets)
+
+set(USE_ZLIB OFF CACHE BOOL "Enable zlib support" FORCE)
 FetchContent_Declare(
-        zlib
-        GIT_REPOSITORY https://github.com/madler/zlib.git
+        ixwebsocket
+        GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
+        GIT_TAG v11.4.6
 )
-FetchContent_MakeAvailable(zlib)
-set(ZLIB_INCLUDE_DIR "${zlib_SOURCE_DIR}")
-set(ZLIB_LIBRARY zlibstatic)
-FetchContent_Declare(
-        libuv
-        GIT_REPOSITORY https://github.com/libuv/libuv.git
-        GIT_TAG        v1.51.0
-)
-FetchContent_MakeAvailable(libuv)
-set(LIBUV_INCLUDE_DIR "${libuv_SOURCE_DIR}/include")
-set(LIBUV_LIBRARY libuv_a)
-FetchContent_Declare(
-        cmake-uwebsockets
-        GIT_REPOSITORY https://github.com/tony-go/cmake-uwebsockets.git
-        GIT_TAG main
-)
-FetchContent_MakeAvailable(cmake-uwebsockets)
+FetchContent_MakeAvailable(ixwebsocket)
 
 # cf. https://github.com/andreacasalino/Minimal-Socket?tab=readme-ov-file#cmake-support
 set(BUILD_MinimalCppSocket_SAMPLES OFF CACHE BOOL "" FORCE)
@@ -82,9 +91,9 @@ add_executable(${PROJECT_NAME}
         src/Config.cpp
         src/Config.h
         src/Trophy.h
-        src/UdpReceiver.h
-        src/WebSocketService.h
-        src/MessageInterpreter.h
+        src/messages/UdpReceiver.h
+        src/messages/WebSocketListener.h
+        src/messages/MessageInterpreter.h
         src/inputHelpers.h
         src/geometryHelpers.h
         src/debug.h
@@ -107,12 +116,15 @@ target_sources(${PROJECT_NAME} PRIVATE
         ${imgui_SOURCE_DIR}/imgui_tables.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-#        ${imgui_SOURCE_DIR}/imgui_demo.cpp
+        ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
         thirdparty/glad/include
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
+        ${imgui_SOURCE_DIR}/misc/cpp/
+#        ${LIBUV_INCLUDE_DIR}
+#        ${cmake-uwebsockets_SOURCE_DIR}
         src/prototype-WIP/compat
 )
 
@@ -121,6 +133,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         OpenGL::GL
         glm::glm
         nlohmann_json::nlohmann_json
+        # uWebSockets
+        ixwebsocket
         MinimalSocket
 )
 

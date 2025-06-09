@@ -9,6 +9,8 @@
 #include <array>
 #include <span>
 #include <functional>
+#include <format>
+#include <optional>
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 #include "Trophy.h"

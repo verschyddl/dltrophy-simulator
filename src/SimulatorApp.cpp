@@ -6,10 +6,11 @@
 #include <iostream>
 
 #include "SimulatorApp.h"
-#include "MessageInterpreter.h"
+#include "messages/MessageInterpreter.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <imgui_stdlib.h>
 
 SimulatorApp::SimulatorApp(Config config)
 : config(config) {
@@ -33,7 +34,8 @@ SimulatorApp::SimulatorApp(Config config)
     shader = new TrophyShader(config, state);
     shader->assertSuccess(showError);
 
-    receiver = new UdpReceiver(config.udpPort);
+    receiver = new UdpReceiver(config.udpPort); // old idea, is dead now.
+    listener = new WebSocketListener(config.wsEndpoint);
 
     initializeKeyMap();
 }
@@ -133,7 +135,7 @@ void SimulatorApp::run() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
 
-        handleUdpMessages();
+        handleMessages();
 
         shader->mightHotReload(config);
     }
@@ -255,7 +257,7 @@ void SimulatorApp::handleMouseInput() {
     }
 }
 
-void SimulatorApp::handleUdpMessages() {
+void SimulatorApp::handleMessages() {
     if (!receiver->runsOn(config.udpPort)) {
         delete receiver;
         receiver = new UdpReceiver(config.udpPort);
@@ -376,9 +378,23 @@ void SimulatorApp::buildControlPanel() {
                  shader->iRect.value.x,
                  shader->iRect.value.y);
 
-    ImGui::InputInt("Port for UDP Messages", &config.udpPort,
-                    0, 0,
-                    ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_CharsDecimal);
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("URL: ws://");
+    ImGui::SameLine();
+    ImGui::InputText("##WebSocket",
+                     &config.wsEndpoint,
+                     ImGuiInputTextFlags_AutoSelectAll);
+    ImGui::SameLine();
+
+    ImGui::PushID("SocketConnect");
+    auto connecting = listener->connectionState() == WebSocketListener::State::Connecting;
+    auto runningThere = listener->isRunningUnder(config.wsEndpoint);
+    ImGui::BeginDisabled(connecting);
+    if (ImGui::Button(connecting ? "Connecting..." : runningThere ? "Reconnect" : "Connect!")) {
+        listener->connect(config.wsEndpoint);
+    }
+    ImGui::EndDisabled();
+    ImGui::PopID();
 
     if (ImGui::Button("Randomize LEDs")) {
         state->randomize();
