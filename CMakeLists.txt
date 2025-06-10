@@ -91,9 +91,7 @@ add_executable(${PROJECT_NAME}
         src/Config.cpp
         src/Config.h
         src/Trophy.h
-        src/messages/UdpReceiver.h
-        src/messages/WebSocketListener.h
-        src/messages/MessageInterpreter.h
+        src/WebSocketListener.h
         src/inputHelpers.h
         src/geometryHelpers.h
         src/debug.h

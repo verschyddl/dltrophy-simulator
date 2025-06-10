@@ -11,11 +11,34 @@
 #include <iostream>
 #include <thread>
 #include <ctime>
-//#include "App.h" // uWebSockets (as you can clearly infer from the name)
 #include "ixwebsocket/IXWebSocket.h"
 
 #define IS_WINDOWS defined(_WIN32) || defined(_WIN64)
 #define IS_LINUX defined(__linux__) || defined(__unix__)
+
+static inline std::string formatTime(std::chrono::system_clock::time_point now = std::chrono::system_clock::now()) {
+    struct tm tm;
+    auto time = std::chrono::system_clock::to_time_t(now);
+    // to unite cross-compatibility and thread-safety -- this abomination.
+    bool failed =
+#if IS_WINDOWS
+            localtime_s(&tm, &time) != 0
+#elif IS_LINUX
+            localtime_r(&time, &tm) == nullptr
+#else
+            true
+#endif
+    ;
+    if (failed) {
+        return "TIMESTAMP_ERROR";
+    }
+    char result[32];
+    strftime(result, sizeof(result), "%Y-%m-%d %H:%M:%S", &tm);
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch()
+            ).count() % 1000;
+    return std::format("{}.{:03d}", result, ms);
+}
 
 struct LiveviewMessage {
     char header; // required to be L
@@ -23,6 +46,11 @@ struct LiveviewMessage {
     Size size{};
     std::vector<LED> colors{};
     std::string error;
+    std::chrono::system_clock::time_point timestamp = std::chrono::system_clock::now();
+
+    std::string formattedTime() const {
+        return formatTime(timestamp);
+    }
 };
 
 class WebSocketListener {
@@ -35,49 +63,22 @@ public:
 
 private:
     std::string endpoint_;
-    std::string pattern = "/*";
-    int port = 9001;
-
     ix::WebSocket socket;
+
     std::thread thread;
     std::queue<LiveviewMessage> queue;
     std::mutex queueMutex;
-//    std::condition_variable queueCv;
     std::atomic<State> state{State::Disconnected};
-    std::string error_;
-
-//    struct PerSocketData {
-//        std::string username;
-//    };
-
-    static std::string timestamp() {
-        time_t now = time(nullptr);
-        char result[32] = "TIMESTAMP_ERROR";
-        struct tm tm;
-        // to unite cross-compatibility and thread-safety -- this abomination.
-        if (
-#if IS_WINDOWS
-                localtime_s(&tm, &now) == 0
-#elif IS_LINUX
-                localtime_r(&now, &tm) != nullptr
-#else
-                false
-#endif
-        ) {
-            strftime(result, sizeof(result), "%Y/%m/%d %H:%M:%S", &tm);
-        }
-        return std::string(result);
-    }
 
     template<typename... Args>
     static void log(std::format_string<Args...> fmt, Args&&... args) {
 
         auto message = std::format(fmt, std::forward<Args>(args)...);
-        std::cout << "[WebSocketListener][ " << timestamp() << "] "
+        std::cout << "[WebSocketListener][ " << formatTime() << "] "
                   << message << std::endl;
     }
 
-    static LiveviewMessage interpret2D(const std::string& message) {
+    static LiveviewMessage interpret(const std::string& message) {
         LiveviewMessage result{
             .header = message[0],
             .version = message[1],
@@ -115,49 +116,38 @@ private:
     }
 
     void onMessage(const ix::WebSocketMessagePtr &msg) {
-        std::string info;
         switch (msg->type) {
             case ix::WebSocketMessageType::Message: {
                     std::lock_guard<std::mutex> lock(queueMutex);
-                    auto message = interpret2D(msg->str);
+                    auto message = interpret(msg->str);
                     queue.push(message);
-//                    queueCv.notify_one();
-
-                    info = message.error.empty()
-                                ? std::format("Liveview: {}x{}, {} LEDs",
-                                              message.size.width,
-                                              message.size.height,
-                                              message.colors.size())
-                                : std::format("Corrupted: {}", message.error);
                 }
                 break;
             case ix::WebSocketMessageType::Open:
-                info = "Open";
+                log("Open");
                 break;
             case ix::WebSocketMessageType::Close:
-                info = "Close";
+                log("Close");
                 break;
             case ix::WebSocketMessageType::Error: {
                 auto err = msg->errorInfo;
-                info = std::format("Error {}: {} ({} {}{})",
-                                   err.http_status,
-                                   err.reason,
-                                   err.retries,
-                                   err.wait_time,
-                                   err.decompressionError ? " decompr" : "");
+                log("Error {}: {} ({} {}{})",
+                    err.http_status,
+                    err.reason,
+                    err.retries,
+                    err.wait_time,err.decompressionError ? " decompr" : "");
                 }
                 break;
             case ix::WebSocketMessageType::Ping:
-                info = "Ping";
+                log("Ping");
                 break;
             case ix::WebSocketMessageType::Pong:
-                info = "Pong";
+                log("Pong");
                 break;
             case ix::WebSocketMessageType::Fragment:
-                info = "Fragment";
+                log("Fragment");
                 break;
         }
-        log("Lel... got message: {}", info);
     }
 
     void run() {
@@ -190,23 +180,6 @@ private:
 public:
     explicit WebSocketListener(const std::string& endpoint) {
         connect(endpoint);
-//        uWS::App().ws<PerSocketData>(pattern, {
-//                .open = [](auto *ws) {
-//                    std::cout << "[WebSocketListener] Connected." << std::endl;
-//                    auto *data = (PerSocketData*)ws->getUserData();
-//                    data->username = "testing-username-for-fun";
-//                },
-//                .message = [this](auto *ws, std::string_view message, uWS::OpCode opCode) {
-//                    std::lock_guard<std::mutex> lock(queueMutex);
-//                    queue.push(std::string(message));
-//                }
-//        }).listen(port, [this](auto *listenSocket) {
-//            if (listenSocket) {
-//                std::cout << "[WebSocketListener] Listening on port " << port << std::endl;
-//            } else {
-//                std::cerr << "[WebSocketListener] Not Listening." << std::endl;
-//            }
-//        }).run();
     }
 
     ~WebSocketListener() {
@@ -241,7 +214,6 @@ public:
         if (queue.empty()) {
             return std::nullopt;
         }
-        // queueCv.wait(lock, [this] { return !queue.empty(); });
         auto message = std::move(queue.front());
         queue.pop();
         return message;
@@ -252,9 +224,6 @@ public:
         return connectionState() == State::Connected
                && endpoint == endpoint_;
     }
-
-    [[nodiscard]]
-    std::string error() { return error_; }
 };
 
 #endif //DLTROPHY_SIMULATOR_SOCKETSERVICE_H

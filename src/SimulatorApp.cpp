@@ -6,7 +6,6 @@
 #include <iostream>
 
 #include "SimulatorApp.h"
-#include "messages/MessageInterpreter.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -260,6 +259,18 @@ void SimulatorApp::handleMessages() {
     auto message = listener->listen();
     if (!message.has_value()) {
         return;
+    }
+
+    if (state->verbose) {
+        std::cout << "[WEBSOCKET MESSAGE][" << message->formattedTime() << "] ";
+        if (message->error.empty()) {
+            std::cout << std::format("{}x{}, {} LEDs", message->size.width,
+                                                       message->size.height,
+                                                       message->colors.size());
+        } else {
+            std::cout << std::format("Unreadable: {}", message->error);
+        }
+        std::cout << std::endl;
     }
 
     for (size_t i=0; i < message->colors.size(); i++) {

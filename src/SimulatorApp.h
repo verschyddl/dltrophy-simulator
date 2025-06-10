@@ -14,9 +14,7 @@
 #include "TrophyShader.h"
 #include "Config.h"
 #include "inputHelpers.h"
-#include "messages/UdpReceiver.h"
-#include "messages/MessageInterpreter.h"
-#include "messages/WebSocketListener.h"
+#include "WebSocketListener.h"
 #include <imgui.h>
 
 class SimulatorApp {
