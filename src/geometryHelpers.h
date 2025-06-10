@@ -8,8 +8,8 @@
 #include <GLFW/glfw3.h>
 
 struct Size {
-    int width;
-    int height;
+    int width = 0;
+    int height = 0;
 
     explicit operator bool() const {
         return width > 0 && height > 0;
@@ -19,8 +19,8 @@ struct Size {
 };
 
 struct Coord {
-    int x;
-    int y;
+    int x = 0;
+    int y = 0;
 };
 
 struct Rect : public Size, public Coord {

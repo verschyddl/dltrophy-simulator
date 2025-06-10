@@ -34,7 +34,6 @@ SimulatorApp::SimulatorApp(Config config)
     shader = new TrophyShader(config, state);
     shader->assertSuccess(showError);
 
-    receiver = new UdpReceiver(config.udpPort); // old idea, is dead now.
     listener = new WebSocketListener(config.wsEndpoint);
 
     initializeKeyMap();
@@ -258,45 +257,16 @@ void SimulatorApp::handleMouseInput() {
 }
 
 void SimulatorApp::handleMessages() {
-    if (!receiver->runsOn(config.udpPort)) {
-        delete receiver;
-        receiver = new UdpReceiver(config.udpPort);
-    }
-
-    auto packet = receiver->listen();
-    if (!packet.has_value()) {
+    auto message = listener->listen();
+    if (!message.has_value()) {
         return;
     }
 
-    auto message = MessageInterpreter::interpret(*packet);
-
-    std::visit(
-        [this](const auto& msg) {
-            using T = std::decay_t<decltype(msg)>;
-
-            if constexpr (std::is_same_v<T, ProtocolMessage>) {
-
-                if (state->verbose) {
-                    std::cout << "[Info]: Message from " << msg.timestamp
-                              << " by " << msg.source
-                              << std::endl;
-                }
-
-                for (const auto& [index, led]: msg.mapping) {
-                    this->state->set(index, led, true);
-
-                    this->lastMessage = std::move(msg);
-                }
-
-            } else if constexpr (std::is_same_v<T, UnreadableMessage>) {
-                std::cerr << "[" << MessageInterpreter::formatTime(msg) << "][Debug Message] Unreadable: "
-                        << msg.reason
-                        << std::endl;
-            }
-        },
-        message
-    );
-
+    for (size_t i=0; i < message->colors.size(); i++) {
+        auto led = message->colors[i];
+        this->state->set(i, led, true);
+    }
+    this->lastMessage = std::move(*message);
 }
 
 void SimulatorApp::handleResize() {
@@ -396,17 +366,29 @@ void SimulatorApp::buildControlPanel() {
     ImGui::EndDisabled();
     ImGui::PopID();
 
-    if (ImGui::Button("Randomize LEDs")) {
-        state->randomize();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Print Debug Stuff")) {
-        printDebug();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Save State")) {
-        config.store(window, state);
-    }
+    ImGuiHelper::JustifiedButtons({
+        {"Randomize LEDs", [this]() {
+            state->randomize();
+        }},
+        {"Print Debug Stuff", [this]() {
+            printDebug();
+        }},
+        {"Save State", [this]() {
+            config.store(window, state);
+        }}
+    });
+//
+//    if (ImGui::Button("Randomize LEDs")) {
+//        state->randomize();
+//    }
+//    ImGui::SameLine();
+//    if (ImGui::Button("Print Debug Stuff")) {
+//        printDebug();
+//    }
+//    ImGui::SameLine();
+//    if (ImGui::Button("Save State")) {
+//        config.store(window, state);
+//    }
 
     ImGui::PushItemWidth(0.32f * panelWidth);
 
@@ -583,24 +565,24 @@ void SimulatorApp::printDebug() const {
         }
     }
     std::cout << std::endl;
-
-    if (lastMessage.has_value()) {
-        auto timestamp = MessageInterpreter::formatTime(*lastMessage);
-        std::cout << "[Last UDP Message] from " << lastMessage->source
-                  << " at " << timestamp << std::endl
-                  << "Protocol: " << (lastMessage->protocol == RealtimeProtocol::DRGB ? "DRGB" : "WARLS");
-        if (lastMessage->timeoutSec.has_value()) {
-            std::cout << "Timeout: " << *lastMessage->timeoutSec;
-        }
-        for (const auto& [index, led] : lastMessage->mapping) {
-            std::cout << "Update LED @Index "
-                      << static_cast<int>(index) << ": "
-                      << led.r << ", "
-                      << led.g << ", "
-                      << led.b << std::endl;
-        }
-    } else {
-        std::cout << "[Last UDP Message] None received yet." << std::endl;
-    }
+//
+//    if (lastMessage.has_value()) {
+//        auto timestamp = MessageInterpreter::formatTime(*lastMessage);
+//        std::cout << "[Last UDP Message] from " << lastMessage->source
+//                  << " at " << timestamp << std::endl
+//                  << "Protocol: " << (lastMessage->protocol == RealtimeProtocol::DRGB ? "DRGB" : "WARLS");
+//        if (lastMessage->timeoutSec.has_value()) {
+//            std::cout << "Timeout: " << *lastMessage->timeoutSec;
+//        }
+//        for (const auto& [index, led] : lastMessage->mapping) {
+//            std::cout << "Update LED @Index "
+//                      << static_cast<int>(index) << ": "
+//                      << led.r << ", "
+//                      << led.g << ", "
+//                      << led.b << std::endl;
+//        }
+//    } else {
+//        std::cout << "[Last UDP Message] None received yet." << std::endl;
+//    }
 
 }

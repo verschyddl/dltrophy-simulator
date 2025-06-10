@@ -38,7 +38,7 @@ private:
     static void handleWindowError(int error, const char* description);
     Size area;
     void handleResize();
-    ImGuiWindowFlags imguiFlags;
+    ImGuiWindowFlags imguiFlags = 0;
     void buildControlPanel();
 
     KeyMap keyMap;
@@ -49,12 +49,12 @@ private:
 
     TrophyShader* shader;
 
-    float startTimestamp;
-    float latestTimestamp;
-    float currentTime;
-    float previousTime;
-    int currentFrame;
-    float currentFps;
+    float startTimestamp = 0;
+    float latestTimestamp = 0;
+    float currentTime = 0;
+    float previousTime = 0;
+    int currentFrame = 0;
+    float currentFps = 0;
     void handleTime();
 
     static const int FPS_SAMPLES = 10;
@@ -65,10 +65,9 @@ private:
     Trophy* trophy;
     ShaderState* state;
 
-    UdpReceiver* receiver;
     WebSocketListener* listener;
     void handleMessages();
-    std::optional<ProtocolMessage> lastMessage;
+    std::optional<LiveviewMessage> lastMessage;
 
     static void showError(const std::string & message);
 };

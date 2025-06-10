@@ -17,6 +17,14 @@
 #define IS_WINDOWS defined(_WIN32) || defined(_WIN64)
 #define IS_LINUX defined(__linux__) || defined(__unix__)
 
+struct LiveviewMessage {
+    char header; // required to be L
+    int version; // required to be 2 (for 2D)
+    Size size{};
+    std::vector<LED> colors{};
+    std::string error;
+};
+
 class WebSocketListener {
 public:
     enum class State {
@@ -32,7 +40,7 @@ private:
 
     ix::WebSocket socket;
     std::thread thread;
-    std::queue<std::string> queue;
+    std::queue<LiveviewMessage> queue;
     std::mutex queueMutex;
 //    std::condition_variable queueCv;
     std::atomic<State> state{State::Disconnected};
@@ -69,22 +77,58 @@ private:
                   << message << std::endl;
     }
 
+    static LiveviewMessage interpret2D(const std::string& message) {
+        LiveviewMessage result{
+            .header = message[0],
+            .version = message[1],
+        };
+        if (result.header != 'L') {
+            result.error = "First Byte has to be \"L\" (76)";
+            return result;
+        }
+        auto length = static_cast<int>(message.size());
+        int startIndex;
+        switch (result.version) {
+            case 1:
+                result.size = {static_cast<int>(message.size()) - 2, 1};
+                startIndex = 2;
+                break;
+            case 2:
+                result.size = {message[2], message[3]};
+                startIndex = 4;
+                break;
+            default:
+                result.error = "Version Byte is not known";
+                return result;
+        }
+
+        try {
+            for (size_t i = startIndex; i < length; i += 3) {
+                result.colors.push_back(
+                        LED(message[i], message[i + 1], message[i + 2])
+                );
+            }
+        } catch (const std::exception& e) {
+            result.error = e.what();
+        }
+        return result;
+    }
+
     void onMessage(const ix::WebSocketMessagePtr &msg) {
         std::string info;
         switch (msg->type) {
             case ix::WebSocketMessageType::Message: {
                     std::lock_guard<std::mutex> lock(queueMutex);
-                    std::vector<uint8_t> bytes;
-                    bytes.assign(msg->str.begin(), msg->str.end());
-                    queue.push(msg->str);
+                    auto message = interpret2D(msg->str);
+                    queue.push(message);
 //                    queueCv.notify_one();
 
-                    std::ostringstream oss;
-                    for (size_t i = 0; i < bytes.size(); ++i) {
-                        oss << (i == 0 ? "[" : ", ") << static_cast<int>(bytes[i]);
-                    }
-                    oss << "]";
-                    info = oss.str();
+                    info = message.error.empty()
+                                ? std::format("Liveview: {}x{}, {} LEDs",
+                                              message.size.width,
+                                              message.size.height,
+                                              message.colors.size())
+                                : std::format("Corrupted: {}", message.error);
                 }
                 break;
             case ix::WebSocketMessageType::Open:
@@ -142,6 +186,7 @@ private:
         log("Stopped listening.");
     }
 
+
 public:
     explicit WebSocketListener(const std::string& endpoint) {
         connect(endpoint);
@@ -186,7 +231,7 @@ public:
         thread = std::thread([this] { this->run(); });
     }
 
-    std::optional<std::string> listen() {
+    std::optional<LiveviewMessage> listen() {
         if (connectionState() != State::Connected) {
             std::cerr << "[WebSocketListener] not connected, cannot listen for shit." << std::endl;
             return std::nullopt;
