@@ -140,6 +140,12 @@ struct ShaderState {
         set(index, LED(r, g, b));
     }
 
+    void setMultiple(std::unordered_map<uint8_t, LED> mapping) {
+        for (const auto& [index, led] : mapping) {
+            set(index, led);
+        }
+    }
+
     // The following functions are here for debugging / development
 
     void set(std::function<LED(size_t)> func) {

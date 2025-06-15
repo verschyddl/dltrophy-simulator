@@ -30,6 +30,12 @@ public:
 
     LED(): LED(0) {}
 
+    static LED from(const std::vector<int>& array, size_t fromIndex = 0) {
+        return LED(array[fromIndex],
+                   array[fromIndex + 1],
+                   array[fromIndex + 2]);
+    }
+
     void set(LED led) {
         r = led.r;
         g = led.g;

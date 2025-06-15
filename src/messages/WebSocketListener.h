@@ -12,33 +12,7 @@
 #include <thread>
 #include <ctime>
 #include "ixwebsocket/IXWebSocket.h"
-
-#define IS_WINDOWS defined(_WIN32) || defined(_WIN64)
-#define IS_LINUX defined(__linux__) || defined(__unix__)
-
-static inline std::string formatTime(std::chrono::system_clock::time_point now = std::chrono::system_clock::now()) {
-    struct tm tm;
-    auto time = std::chrono::system_clock::to_time_t(now);
-    // to unite cross-compatibility and thread-safety -- this abomination.
-    bool failed =
-#if IS_WINDOWS
-            localtime_s(&tm, &time) != 0
-#elif IS_LINUX
-            localtime_r(&time, &tm) == nullptr
-#else
-            true
-#endif
-    ;
-    if (failed) {
-        return "TIMESTAMP_ERROR";
-    }
-    char result[32];
-    strftime(result, sizeof(result), "%Y-%m-%d %H:%M:%S", &tm);
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            now.time_since_epoch()
-            ).count() % 1000;
-    return std::format("{}.{:03d}", result, ms);
-}
+#include "timeFormat.h"
 
 struct LiveviewMessage {
     char header; // required to be L
@@ -48,6 +22,7 @@ struct LiveviewMessage {
     std::string error;
     std::chrono::system_clock::time_point timestamp = std::chrono::system_clock::now();
 
+    [[nodiscard]]
     std::string formattedTime() const {
         return formatTime(timestamp);
     }
@@ -69,12 +44,13 @@ private:
     std::queue<LiveviewMessage> queue;
     std::mutex queueMutex;
     std::atomic<State> state{State::Disconnected};
+    std::atomic<bool> hasError{false};
 
     template<typename... Args>
     static void log(std::format_string<Args...> fmt, Args&&... args) {
 
         auto message = std::format(fmt, std::forward<Args>(args)...);
-        std::cout << "[WebSocketListener][ " << formatTime() << "] "
+        std::cout << "[WebSocketListener][" << formatTime() << "] "
                   << message << std::endl;
     }
 
@@ -137,6 +113,7 @@ private:
                     err.retries,
                     err.wait_time,err.decompressionError ? " decompr" : "");
                 }
+                hasError = true;
                 break;
             case ix::WebSocketMessageType::Ping:
                 log("Ping");
@@ -159,12 +136,17 @@ private:
                     this->onMessage(msg);
                 });
         socket.start();
-        state = State::Connected;
 
         log("Initiating Websocket under {}", url);
         while (socket.getReadyState() != ix::ReadyState::Open) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            if (hasError.load()) {
+                socket.stop();
+                state = State::Disconnected;
+                return;
+            }
         }
+        state = State::Connected;
         std::string startMessage = "{\"lv\": true}";
         socket.send(startMessage);
 
@@ -175,7 +157,6 @@ private:
         state = State::Disconnected;
         log("Stopped listening.");
     }
-
 
 public:
     explicit WebSocketListener(const std::string& endpoint) {
@@ -194,6 +175,8 @@ public:
         if (thread.joinable()) {
             thread.join();
         }
+        state = State::Disconnected;
+        hasError = false;
     }
 
     void connect(const std::string& endpoint) {
@@ -206,7 +189,6 @@ public:
 
     std::optional<LiveviewMessage> listen() {
         if (connectionState() != State::Connected) {
-            std::cerr << "[WebSocketListener] not connected, cannot listen for shit." << std::endl;
             return std::nullopt;
         }
 

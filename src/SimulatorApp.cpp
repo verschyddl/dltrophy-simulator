@@ -6,6 +6,8 @@
 #include <iostream>
 
 #include "SimulatorApp.h"
+#include "MessageInterpreter.h"
+#include "timeFormat.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -33,7 +35,8 @@ SimulatorApp::SimulatorApp(Config config)
     shader = new TrophyShader(config, state);
     shader->assertSuccess(showError);
 
-    listener = new WebSocketListener(config.wsEndpoint);
+    udpListener = new UdpListener(config.udpPort);
+//    wsListener = new WebSocketListener(config.wsEndpoint);
 
     initializeKeyMap();
 }
@@ -256,28 +259,40 @@ void SimulatorApp::handleMouseInput() {
 }
 
 void SimulatorApp::handleMessages() {
-    auto message = listener->listen();
-    if (!message.has_value()) {
-        return;
-    }
+    auto udpPacket = udpListener->listen();
+    if (udpPacket.has_value()) {
+        auto udpMessage = MessageInterpreter::interpret(*udpPacket);
+        if (std::holds_alternative<ProtocolMessage>(udpMessage)) {
+            lastUdpMessage = std::get<ProtocolMessage>(udpMessage);
+            state->setMultiple(lastUdpMessage->mapping);
 
-    if (state->verbose) {
-        std::cout << "[WEBSOCKET MESSAGE][" << message->formattedTime() << "] ";
-        if (message->error.empty()) {
-            std::cout << std::format("{}x{}, {} LEDs", message->size.width,
-                                                       message->size.height,
-                                                       message->colors.size());
+            if (state->verbose) {
+                std::cout << "[UDP MESSAGE]["
+                          << formatTime(lastUdpMessage->timestamp)
+                          << "]" << std::endl;
+            }
         } else {
-            std::cout << std::format("Unreadable: {}", message->error);
+            auto msg = std::get<UnreadableMessage>(udpMessage);
+            if (state->verbose) {
+                std::cout << "[UDP MESSAGE]["
+                          << formatTime(msg.timestamp)
+                          << "] Unreadable. " << msg.reason << std::endl;
+            }
         }
-        std::cout << std::endl;
     }
 
-    for (size_t i=0; i < message->colors.size(); i++) {
-        auto led = message->colors[i];
-        this->state->set(i, led, true);
-    }
-    this->lastMessage = std::move(*message);
+//    auto message = wsListener->listen();
+//    if (message.has_value()) {
+//        for (size_t i=0; i < message->colors.size(); i++) {
+//            auto led = message->colors[i];
+//            state->set(i, led, true);
+//        }
+//        lastWsMessage = std::move(*message);
+//
+//        if (state->verbose) {
+//            std::cout << "[WEBSOCKET MESSAGE][" << message->formattedTime() << "]";
+//        }
+//    }
 }
 
 void SimulatorApp::handleResize() {
@@ -359,23 +374,33 @@ void SimulatorApp::buildControlPanel() {
                  shader->iRect.value.x,
                  shader->iRect.value.y);
 
-    ImGui::AlignTextToFramePadding();
     ImGui::Text("URL: ws://");
     ImGui::SameLine();
-    ImGui::InputText("##WebSocket",
-                     &config.wsEndpoint,
-                     ImGuiInputTextFlags_AutoSelectAll);
-    ImGui::SameLine();
+    ImGui::InputInt("UDP Listener Messages", &config.udpPort,
+                    0, 0,
+                    ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_CharsDecimal);
+//
+//    ImGui::AlignTextToFramePadding();
+//    ImGui::Text("URL: ws://");
+//    ImGui::SameLine();
+//    ImGui::InputText("##WebSocket",
+//                     &config.wsEndpoint,
+//                     ImGuiInputTextFlags_AutoSelectAll);
+//    ImGui::SameLine();
 
-    ImGui::PushID("SocketConnect");
-    auto connecting = listener->connectionState() == WebSocketListener::State::Connecting;
-    auto runningThere = listener->isRunningUnder(config.wsEndpoint);
-    ImGui::BeginDisabled(connecting);
-    if (ImGui::Button(connecting ? "Connecting..." : runningThere ? "Reconnect" : "Connect!")) {
-        listener->connect(config.wsEndpoint);
-    }
-    ImGui::EndDisabled();
-    ImGui::PopID();
+//    ImGui::PushID("SocketConnect");
+//    auto connecting = wsListener->connectionState() == WebSocketListener::State::Connecting;
+//    auto runningThere = wsListener->isRunningUnder(config.wsEndpoint);
+//    ImGui::BeginDisabled(connecting);
+//    if (ImGui::Button(connecting ? "Connecting..." : runningThere ? "Close" : "Connect!")) {
+//        if (runningThere) {
+//            wsListener->disconnect();
+//        } else {
+//            wsListener->connect(config.wsEndpoint);
+//        }
+//    }
+//    ImGui::EndDisabled();
+//    ImGui::PopID();
 
     ImGuiHelper::JustifiedButtons({
         {"Randomize LEDs", [this]() {

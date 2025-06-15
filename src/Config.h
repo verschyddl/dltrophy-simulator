@@ -22,8 +22,8 @@ public:
         1080,
         720
     };
-    int udpPort = 3413;
     std::string wsEndpoint = "trophy.local/ws";
+    int udpPort = 3413;
 
     std::string customVertexShaderPath;
     std::string customFragmentShaderPath;
@@ -61,8 +61,10 @@ public:
 
 private:
     bool tryReadFile();
-    std::optional<nlohmann::json> tryReadJson() const;
     std::optional<nlohmann::json> currentJson;
+
+    [[nodiscard]]
+    std::optional<nlohmann::json> tryReadJson() const;
 
     std::optional<Coord> windowPos = std::nullopt;
     RelativeRect shaderView{

@@ -15,6 +15,8 @@
 #include "Config.h"
 #include "inputHelpers.h"
 #include "WebSocketListener.h"
+#include "UdpListener.h"
+#include "MessageInterpreter.h"
 #include <imgui.h>
 
 class SimulatorApp {
@@ -63,9 +65,11 @@ private:
     Trophy* trophy;
     ShaderState* state;
 
-    WebSocketListener* listener;
+    UdpListener* udpListener;
+    std::optional<ProtocolMessage> lastUdpMessage;
+//    WebSocketListener* wsListener;
+//    std::optional<LiveviewMessage> lastWsMessage;
     void handleMessages();
-    std::optional<LiveviewMessage> lastMessage;
 
     static void showError(const std::string & message);
 };
