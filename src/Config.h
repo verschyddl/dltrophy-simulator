@@ -22,7 +22,7 @@ public:
         1080,
         720
     };
-    std::string wsEndpoint = "trophy.local/ws";
+
     int udpPort = 3413;
 
     std::string customVertexShaderPath;

@@ -67,9 +67,11 @@ private:
 
     UdpListener* udpListener;
     std::optional<ProtocolMessage> lastUdpMessage;
-//    WebSocketListener* wsListener;
-//    std::optional<LiveviewMessage> lastWsMessage;
     void handleMessages();
+
+    [[maybe_unused]]
+    WebSocketListener* wsListener;
+    // <-- not "maybe unused". This idea is just unused.
 
     static void showError(const std::string & message);
 };

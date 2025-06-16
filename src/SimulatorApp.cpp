@@ -4,6 +4,7 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <variant>
 
 #include "SimulatorApp.h"
 #include "UdpInterpreter.h"
@@ -36,7 +37,6 @@ SimulatorApp::SimulatorApp(Config config)
     shader->assertSuccess(showError);
 
     udpListener = new UdpListener(config.udpPort);
-//    wsListener = new WebSocketListener(config.wsEndpoint);
 
     initializeKeyMap();
 }
@@ -261,39 +261,27 @@ void SimulatorApp::handleMouseInput() {
 
 void SimulatorApp::handleMessages() {
     auto udpPacket = udpListener->listen();
-    if (udpPacket.has_value()) {
-        auto udpMessage = UdpInterpreter::interpret(*udpPacket);
-        if (std::holds_alternative<ProtocolMessage>(udpMessage)) {
-            lastUdpMessage = std::get<ProtocolMessage>(udpMessage);
-            state->setMultiple(lastUdpMessage->mapping);
 
-            if (state->verbose) {
-                std::cout << "[UDP MESSAGE]["
-                          << formatTime(lastUdpMessage->timestamp)
-                          << "]" << std::endl;
-            }
-        } else {
-            auto msg = std::get<UnreadableMessage>(udpMessage);
-            if (state->verbose) {
-                std::cout << "[UDP MESSAGE]["
-                          << formatTime(msg.timestamp)
-                          << "] Unreadable. " << msg.reason << std::endl;
-            }
-        }
+    if (!udpPacket.has_value()) {
+        return;
     }
 
-//    auto message = wsListener->listen();
-//    if (message.has_value()) {
-//        for (size_t i=0; i < message->colors.size(); i++) {
-//            auto led = message->colors[i];
-//            state->set(i, led, true);
-//        }
-//        lastWsMessage = std::move(*message);
-//
-//        if (state->verbose) {
-//            std::cout << "[WEBSOCKET MESSAGE][" << message->formattedTime() << "]";
-//        }
-//    }
+    auto message = UdpInterpreter::interpret(*udpPacket);
+
+    std::visit([this](auto&& msg) {
+        using T = std::decay_t<decltype(msg)>;
+
+        if constexpr (std::is_same_v<T, ProtocolMessage>) {
+            state->setMultiple(msg.mapping);
+            this->lastUdpMessage = msg;
+
+        } else if constexpr (std::is_same_v<T, UnreadableMessage>) {
+            if (this->state->verbose) {
+                msg.printDebug(std::cout);
+            }
+        }
+
+    }, message);
 }
 
 void SimulatorApp::handleResize() {
@@ -382,28 +370,6 @@ void SimulatorApp::buildControlPanel() {
                     0, 0,
                     ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_CharsDecimal);
 
-//    ImGui::AlignTextToFramePadding();
-//    ImGui::Text("URL: ws://");
-//    ImGui::SameLine();
-//    ImGui::InputText("##WebSocket",
-//                     &config.wsEndpoint,
-//                     ImGuiInputTextFlags_AutoSelectAll);
-//    ImGui::SameLine();
-
-//    ImGui::PushID("SocketConnect");
-//    auto connecting = wsListener->connectionState() == WebSocketListener::State::Connecting;
-//    auto runningThere = wsListener->isRunningUnder(config.wsEndpoint);
-//    ImGui::BeginDisabled(connecting);
-//    if (ImGui::Button(connecting ? "Connecting..." : runningThere ? "Close" : "Connect!")) {
-//        if (runningThere) {
-//            wsListener->disconnect();
-//        } else {
-//            wsListener->connect(config.wsEndpoint);
-//        }
-//    }
-//    ImGui::EndDisabled();
-//    ImGui::PopID();
-
     ImGuiHelper::JustifiedButtons({
         {"Randomize LEDs", [this]() {
             state->randomize();
@@ -418,18 +384,6 @@ void SimulatorApp::buildControlPanel() {
             config.store(window, state);
         }}
     });
-//
-//    if (ImGui::Button("Randomize LEDs")) {
-//        state->randomize();
-//    }
-//    ImGui::SameLine();
-//    if (ImGui::Button("Print Debug Stuff")) {
-//        printDebug();
-//    }
-//    ImGui::SameLine();
-//    if (ImGui::Button("Save State")) {
-//        config.store(window, state);
-//    }
 
     ImGui::PushItemWidth(0.32f * panelWidth);
 
@@ -485,7 +439,6 @@ void SimulatorApp::buildControlPanel() {
         ImGui::SliderFloat("Camera Tilt",
                            &state->params.camTilt,
                            -60.f, 60.f);
-
     }
 
     if (ImGui::CollapsingHeader("Background Scenery")) {
@@ -511,7 +464,6 @@ void SimulatorApp::buildControlPanel() {
         ImGui::SliderFloat("Synthwave Grid Glow",
                            &state->params.floorGrading,
                            0.001f, 20.f);
-
     }
 
     if (ImGui::CollapsingHeader("Pyramid (Trophy)", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -548,7 +500,6 @@ void SimulatorApp::buildControlPanel() {
         ImGui::SliderFloat("Pyramid Epoxy Permittivity",
                            &state->params.epoxyPermittivity,
                            0.01f, 10.f);
-
     }
 
     if (ImGui::CollapsingHeader("Rendering", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -564,10 +515,7 @@ void SimulatorApp::buildControlPanel() {
                            1., 1000.);
         ImGui::SameLine();
         ImGui::Text("March Limits");
-//        ImGui::SliderInt("##MaxSteps",
-//                           &state->params.traceMaxSteps,
-//                           1, 1000);
-//        ImGui::SameLine();
+
         ImGui::SliderInt("##MaxRecursions",
                            &state->params.traceMaxRecursions,
                            1, 32);

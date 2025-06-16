@@ -36,6 +36,12 @@ struct UnreadableMessage {
     std::string reason;
     RawMessage original;
     std::chrono::system_clock::time_point timestamp = std::chrono::system_clock::now();
+
+    void printDebug(std::ostream& os) const {
+        os << "[UDP MESSAGE][" << formatTime(timestamp)
+           << "] Unreadable. " << reason
+           << std::endl;
+    }
 };
 
 struct IndexStride{
