@@ -364,7 +364,7 @@ void SimulatorApp::buildControlPanel() {
                 shader->iRect.value.y);
 
     ImGui::Text("UDP Port:");
-    ImGui::SameLine();
+    ImGui::SameLine(stop);
     ImGui::InputInt("##UdpMessagePort",
                     &config.udpPort,
                     0, 0,
@@ -374,13 +374,13 @@ void SimulatorApp::buildControlPanel() {
         {"Randomize LEDs", [this]() {
             state->randomize();
         }},
-        {"LEDs off", [this]() {
+        {"off", [this]() {
             state->setAll(0, 0, 0);
         }},
         {"Print Debug", [this]() {
             printDebug();
         }},
-        {"Save State", [this]() {
+        {"Save", [this]() {
             config.store(window, state);
         }}
     });

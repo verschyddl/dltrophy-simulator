@@ -57,7 +57,7 @@ const std::unordered_map<RealtimeProtocol, IndexStride> protocolStride{
 
 using AnyMessage = std::variant<ProtocolMessage, UnreadableMessage>;
 
-static bool loggedOne = false;
+static bool firstMessageWasLogged = false;
 
 class UdpInterpreter {
 public:
@@ -97,8 +97,8 @@ public:
                     return UnreadableMessage{"Invalid Protocol", message};
             }
 
-            if (!loggedOne) {
-                std::cout << "INTERPRET INDEX " << i
+            if (!firstMessageWasLogged) {
+                std::cout << "INTERPRET INDEX " << std::setw(3) << i
                           << ": " << message.values[i]
                           << " -- " << led.toString()
                           << std::endl;
@@ -107,7 +107,7 @@ public:
             result.mapping[ledIndex] = std::move(led);
         }
 
-        loggedOne = true;
+        firstMessageWasLogged = true;
         return result;
     }
 
