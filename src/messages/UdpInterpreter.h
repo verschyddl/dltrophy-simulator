@@ -2,8 +2,8 @@
 // Created by qm210 on 26.05.2025.
 //
 
-#ifndef DLTROPHY_SIMULATOR_MESSAGEINTERPRETER_H
-#define DLTROPHY_SIMULATOR_MESSAGEINTERPRETER_H
+#ifndef DLTROPHY_SIMULATOR_UDPINTERPRETER_H
+#define DLTROPHY_SIMULATOR_UDPINTERPRETER_H
 
 #include "../LED.h"
 #include "UdpListener.h"
@@ -51,7 +51,9 @@ const std::unordered_map<RealtimeProtocol, IndexStride> protocolStride{
 
 using AnyMessage = std::variant<ProtocolMessage, UnreadableMessage>;
 
-class MessageInterpreter {
+static bool loggedOne = false;
+
+class UdpInterpreter {
 public:
 
     static AnyMessage interpret(const RawMessage& message) {
@@ -65,6 +67,7 @@ public:
         LED led;
 
         for (size_t i = stride.start; i < message.values.size(); i += stride.step) {
+
             switch (result.protocol) {
 
                 case RealtimeProtocol::WARLS:
@@ -73,12 +76,12 @@ public:
                     break;
 
                 case RealtimeProtocol::DRGB:
-                    ledIndex = (i - 2) / stride.step;
+                    ledIndex = (i - stride.start) / stride.step;
                     led = LED::from(message.values, i);
                     break;
 
                 case RealtimeProtocol::DNRGB:
-                    ledIndex = (i - 4) / stride.step
+                    ledIndex = (i - stride.start) / stride.step
                             + int16from(message.values[2], message.values[3]);
                     led = LED::from(message.values, i);
                     break;
@@ -88,9 +91,17 @@ public:
                     return UnreadableMessage{"Invalid Protocol", message};
             }
 
+            if (!loggedOne) {
+                std::cout << "INTERPRET INDEX " << i
+                          << ": " << message.values[i]
+                          << " -- " << led.toString()
+                          << std::endl;
+            }
+
             result.mapping[ledIndex] = std::move(led);
         }
 
+        loggedOne = true;
         return result;
     }
 
@@ -142,4 +153,4 @@ private:
     }
 };
 
-#endif //DLTROPHY_SIMULATOR_MESSAGEINTERPRETER_H
+#endif //DLTROPHY_SIMULATOR_UDPINTERPRETER_H

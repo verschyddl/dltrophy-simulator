@@ -53,6 +53,11 @@ public:
         auto w = 0.299 * r + 0.587 * g + 0.114 * b;
         return static_cast<GLuint>(w);
     }
+
+    [[nodiscard]]
+    std::string toString() const {
+        return std::format("[{:03},{:03},{:03}]", r, g, b);
+    }
 };
 
 #endif //DLTROPHY_SIMULATOR_LED_H

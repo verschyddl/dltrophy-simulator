@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include "SimulatorApp.h"
-#include "MessageInterpreter.h"
+#include "UdpInterpreter.h"
 #include "timeFormat.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -71,12 +71,13 @@ GLFWwindow* SimulatorApp::initializeWindow() {
             nullptr,
             nullptr
     );
-    config.restore(window);
 
     if (!window) {
         glfwTerminate();
         throw std::runtime_error("Could not create GLFW window.");
     }
+
+    config.restore(window);
 
     glfwMakeContextCurrent(window);
 
@@ -261,7 +262,7 @@ void SimulatorApp::handleMouseInput() {
 void SimulatorApp::handleMessages() {
     auto udpPacket = udpListener->listen();
     if (udpPacket.has_value()) {
-        auto udpMessage = MessageInterpreter::interpret(*udpPacket);
+        auto udpMessage = UdpInterpreter::interpret(*udpPacket);
         if (std::holds_alternative<ProtocolMessage>(udpMessage)) {
             lastUdpMessage = std::get<ProtocolMessage>(udpMessage);
             state->setMultiple(lastUdpMessage->mapping);
@@ -360,26 +361,27 @@ void SimulatorApp::buildControlPanel() {
     auto stop = 0.24f * panelWidth;
     ImGui::Text("Time:");
     ImGui::SameLine(stop);
-    ImGui::Text( "%6.2f sec.",
-                 shader->iTime.value);
+    ImGui::Text("%6.2f sec.",
+                shader->iTime.value);
     ImGui::Text("FPS:");
     ImGui::SameLine(stop);
-    ImGui::Text( "%6.2f",
-                 shader->iFPS.value);
+    ImGui::Text("%6.2f",
+                shader->iFPS.value);
     ImGui::Text("Resolution:");
     ImGui::SameLine(stop);
-    ImGui::Text( "%.0f x %.0f (Offset: %.0f x %.0f)",
-                 shader->iRect.value.z,
-                 shader->iRect.value.w,
-                 shader->iRect.value.x,
-                 shader->iRect.value.y);
+    ImGui::Text("%.0f x %.0f (Offset: %.0f x %.0f)",
+                shader->iRect.value.z,
+                shader->iRect.value.w,
+                shader->iRect.value.x,
+                shader->iRect.value.y);
 
-    ImGui::Text("URL: ws://");
+    ImGui::Text("UDP Port:");
     ImGui::SameLine();
-    ImGui::InputInt("UDP Listener Messages", &config.udpPort,
+    ImGui::InputInt("##UdpMessagePort",
+                    &config.udpPort,
                     0, 0,
                     ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_CharsDecimal);
-//
+
 //    ImGui::AlignTextToFramePadding();
 //    ImGui::Text("URL: ws://");
 //    ImGui::SameLine();
@@ -406,7 +408,10 @@ void SimulatorApp::buildControlPanel() {
         {"Randomize LEDs", [this]() {
             state->randomize();
         }},
-        {"Print Debug Stuff", [this]() {
+        {"LEDs off", [this]() {
+            state->setAll(0, 0, 0);
+        }},
+        {"Print Debug", [this]() {
             printDebug();
         }},
         {"Save State", [this]() {
@@ -601,24 +606,4 @@ void SimulatorApp::printDebug() const {
         }
     }
     std::cout << std::endl;
-//
-//    if (lastMessage.has_value()) {
-//        auto timestamp = MessageInterpreter::formatTime(*lastMessage);
-//        std::cout << "[Last UDP Message] from " << lastMessage->source
-//                  << " at " << timestamp << std::endl
-//                  << "Protocol: " << (lastMessage->protocol == RealtimeProtocol::DRGB ? "DRGB" : "WARLS");
-//        if (lastMessage->timeoutSec.has_value()) {
-//            std::cout << "Timeout: " << *lastMessage->timeoutSec;
-//        }
-//        for (const auto& [index, led] : lastMessage->mapping) {
-//            std::cout << "Update LED @Index "
-//                      << static_cast<int>(index) << ": "
-//                      << led.r << ", "
-//                      << led.g << ", "
-//                      << led.b << std::endl;
-//        }
-//    } else {
-//        std::cout << "[Last UDP Message] None received yet." << std::endl;
-//    }
-
 }

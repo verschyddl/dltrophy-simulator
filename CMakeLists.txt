@@ -68,7 +68,7 @@ add_executable(${PROJECT_NAME}
         src/Trophy.h
         src/messages/WebSocketListener.h
         src/messages/UdpListener.h
-        src/messages/MessageInterpreter.h
+        src/messages/UdpInterpreter.h
         src/inputHelpers.h
         src/geometryHelpers.h
         src/debug.h

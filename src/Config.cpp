@@ -75,6 +75,7 @@ void Config::restore(GLFWwindow* window) {
     }
 
     if (windowPos.has_value()) {
+        windowPos->moveToLarger(totalMonitorMinimum());
         glfwSetWindowPos(window, windowPos->x, windowPos->y);
     }
 

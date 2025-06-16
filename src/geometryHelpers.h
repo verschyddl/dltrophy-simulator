@@ -21,6 +21,24 @@ struct Size {
 struct Coord {
     int x = 0;
     int y = 0;
+
+    void moveToSmaller(const Coord& other) {
+        if (other.x < x) {
+            x = other.x;
+        }
+        if (other.y < y) {
+            y = other.y;
+        }
+    }
+
+    void moveToLarger(const Coord& other) {
+        if (other.x > x) {
+            x = other.x;
+        }
+        if (other.y > y) {
+            y = other.y;
+        }
+    }
 };
 
 struct Rect : public Size, public Coord {
@@ -47,6 +65,22 @@ struct RelativeRect {
 template <typename numberType1, typename numberType2>
 static inline bool samePixel(numberType1 x1, numberType1 y1, numberType2 x2, numberType2 y2) {
     return std::abs(x2 - x1) < .5 && std::abs(y2 -y1) < .5;
+}
+
+static inline Coord totalMonitorMinimum() {
+    int monitorCount;
+    auto monitors = glfwGetMonitors(&monitorCount);
+    if (monitorCount == 0) {
+        throw std::runtime_error("Seems there are no monitors, what do you even want??");
+    }
+
+    Coord result{0, 0};
+    for (int m = 0; m < monitorCount; m++) {
+        Coord pos{};
+        glfwGetMonitorPos(monitors[m], &pos.x, &pos.y);
+        result.moveToSmaller(pos);
+    }
+    return result;
 }
 
 #endif //DLTROPHY_SIMULATOR_GEOMETRYHELPERS_H
