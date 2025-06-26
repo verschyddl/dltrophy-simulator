@@ -17,15 +17,15 @@
 #include <glm/vec4.hpp>
 
 struct Trophy {
-    static const GLuint N_LEDS_IN_LOGO = 106;
     static const GLuint N_LEDS_IN_BASE = 64;
-    static const GLuint N_RGB_LEDS = N_LEDS_IN_LOGO + N_LEDS_IN_BASE;
+    static const GLuint N_LEDS_IN_LOGO = 106;
+    static const GLuint N_RGB_LEDS = N_LEDS_IN_BASE + N_LEDS_IN_LOGO;
     static const GLuint N_SINGLE_LEDS = 2;
     static const GLuint N_LEDS = N_RGB_LEDS + N_SINGLE_LEDS;
 
     // could be considered configurable (it's all WLED config...), but are fixed for now.
-    int logoStartIndex = 0;
-    int baseStartIndex = N_LEDS_IN_LOGO;
+    int baseStartIndex = 0;
+    int logoStartIndex = N_LEDS_IN_BASE;
     int backLedIndex = N_LEDS - 2;
     int floorLedIndex = N_LEDS - 1;
 
@@ -56,8 +56,8 @@ struct Trophy {
 
         for (int i = 0; i < N_LEDS; i++) {
 
-            isLogo[i] = i >= logoStartIndex && i < logoStartIndex + N_LEDS_IN_LOGO;
             isBase[i] = i >= baseStartIndex && i < baseStartIndex + N_LEDS_IN_BASE;
+            isLogo[i] = i >= logoStartIndex && i < logoStartIndex + N_LEDS_IN_LOGO;
             isSingleColor[i] = !isLogo[i] && !isBase[i];
 
             glm::vec2 relative;
@@ -157,7 +157,7 @@ struct Trophy {
     }
 
     static glm::vec2 calc_base_order(int base_index) {
-        size_t N_EDGE = N_LEDS_IN_BASE / 4;
+        int N_EDGE = N_LEDS_IN_BASE / 4;
         float edge_step = 1.f / float(N_EDGE - 1 + 2);
         int base_edge = base_index / N_EDGE;
 
