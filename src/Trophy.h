@@ -17,17 +17,17 @@
 #include <glm/vec4.hpp>
 
 struct Trophy {
-    static const GLuint N_LEDS_IN_BASE = 64;
-    static const GLuint N_LEDS_IN_LOGO = 106;
-    static const GLuint N_RGB_LEDS = N_LEDS_IN_BASE + N_LEDS_IN_LOGO;
-    static const GLuint N_SINGLE_LEDS = 2;
-    static const GLuint N_LEDS = N_RGB_LEDS + N_SINGLE_LEDS;
+    static constexpr GLuint N_LEDS_IN_BASE = 64;
+    static constexpr GLuint N_LEDS_IN_LOGO = 106;
+    static constexpr GLuint N_RGB_LEDS = N_LEDS_IN_BASE + N_LEDS_IN_LOGO;
+    static constexpr GLuint N_SINGLE_LEDS = 2;
+    static constexpr GLuint N_LEDS = N_RGB_LEDS + N_SINGLE_LEDS;
 
     // could be considered configurable (it's all WLED config...), but are fixed for now.
-    int baseStartIndex = 0;
-    int logoStartIndex = N_LEDS_IN_BASE;
-    int backLedIndex = N_LEDS - 2;
-    int floorLedIndex = N_LEDS - 1;
+    static constexpr int baseStartIndex = 0;
+    static constexpr int logoStartIndex = N_LEDS_IN_BASE;
+    static constexpr int backLedIndex = N_LEDS - 2;
+    static constexpr int floorLedIndex = N_LEDS - 1;
 
     std::array<glm::vec4, N_LEDS> position{};
 
@@ -198,9 +198,9 @@ struct Trophy {
 
         for (int i = 0; i < N_LEDS; i++) {
 
-            if (i == 0) {
+            if (i == logoStartIndex) {
                 std::cout << "  LOGO:" << std::endl;
-            } else if (i == N_LEDS_IN_LOGO) {
+            } else if (i == baseStartIndex) {
                 std::cout << "  BASE:" << std::endl;
             } else if (i == N_RGB_LEDS) {
                 std::cout << "  WHITE-ONLY:" << std::endl;

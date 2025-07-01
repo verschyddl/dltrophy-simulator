@@ -176,14 +176,12 @@ void Config::store(GLFWwindow* window, ShaderState* state) const {
                  {"z", state->trophy->logoCenter.z},
                  {"width", state->trophy->logoSize.x},
                  {"height", state->trophy->logoSize.y},
-                 {"startIndex", state->trophy->logoStartIndex},
             }},
             {"base", {
                  {"x", state->trophy->baseCenter.x},
                  {"y", state->trophy->baseCenter.y},
                  {"z", state->trophy->baseCenter.z},
                  {"size", state->trophy->baseSize},
-                 {"startIndex", state->trophy->baseStartIndex},
             }},
         };
     }
@@ -236,14 +234,12 @@ void Config::restore(ShaderState* state) {
         state->trophy->logoCenter.z = logoJson["z"];
         state->trophy->logoSize.x = logoJson["width"];
         state->trophy->logoSize.y = logoJson["height"];
-        state->trophy->logoStartIndex = logoJson["startIndex"];
 
         json baseJson = trophyJson["base"];
         state->trophy->baseCenter.x = baseJson["x"];
         state->trophy->baseCenter.y = baseJson["y"];
         state->trophy->baseCenter.z = baseJson["z"];
         state->trophy->baseSize = baseJson["size"];
-        state->trophy->baseStartIndex = baseJson["startIndex"];
 
         state->trophy->rebuild();
     }

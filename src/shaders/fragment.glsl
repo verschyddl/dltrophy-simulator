@@ -19,11 +19,11 @@ const int SCENE_PASS = 1;
 const int POST_PASS = 2;
 bool onlyLeds = iPass == ONLY_LEDS_PASS;
 
-const int nLeds = 172;
+const int nLeds = 172; // needed the possible maximum as const instead of uniform ...
 
 layout(std140) uniform TrophyDefinition {
-    int nLedsActive;
-    vec4 ledPosition[nLeds];
+    int nLedsActive; // ... and less can be shown with this one (for debugging reasons)
+    vec4 ledPosition[nLeds]; // ... because of this array size here ...
 };
 
 struct RGB { // last value is only for alignment, never used.
@@ -70,6 +70,7 @@ const int LED_MATERIAL = 0;
 const int FLOOR_MATERIAL = 1;
 const int PYRAMID_MATERIAL = 2;
 const int PYRAMID_FRAME_MATERIAL = 3;
+const int LED_FRAME_MATERIAL = 4;
 const int DEBUG_MATERIAL = 99;
 
 const vec3 borderDark = vec3(0.4);
@@ -226,6 +227,13 @@ float sdSphere(vec3 p, vec3 center, float radius) {
     return length(p - center) - radius;
 }
 
+float sdZCylinder( vec3 p, float ra, float roundness, float h )
+{
+    // "YCylinder" because the Y-Axis is its length axis, see last term:
+    vec2 d = vec2( length(p.xy)-2.0*ra+roundness, abs(p.z) - h );
+    return min(max(d.x,d.y),0.0) + length(max(d,0.0)) - roundness;
+}
+
 float sdLineSegment(vec3 p, vec3 a, vec3 b) {
     vec3 ap = p - a;
     vec3 ab = b - a;
@@ -294,18 +302,24 @@ bool updatedHit(inout Marched hit, float sd) {
 Marched sdScene(vec3 p) {
     Marched hit = sdFloor(p);
     float sd;
+    bool isCloser;
 
     p *= pyramidRotation;
     for (int i = 0; i < nLedsActive; i++) {
+        if (i >= 64 && i < 64 + 106) {
+            sd = sdZCylinder(p - ledPosition[i].xyz, ledSize * 1.1, 0.0001, ledSize * 0.5);
+            if (updatedHit(hit, sd)) {
+                hit.ledIndex = i;
+                hit.material = LED_FRAME_MATERIAL;
+            }
+        }
         sd = sdSphere(p, ledPosition[i].xyz, ledSize);
         if (updatedHit(hit, sd)) {
             hit.ledIndex = i;
+            hit.material = LED_MATERIAL;
         }
     }
-    if (hit.ledIndex >= 0) {
-        hit.material = LED_MATERIAL;
-        extraOutput.y = float(hit.ledIndex); // cf. below "extraOutput"
-    }
+    extraOutput.y = float(hit.ledIndex); // cf. below "extraOutput"
     if (onlyLeds) {
         return hit;
     }
@@ -433,6 +447,9 @@ const vec3 debugColor = c.xwy; // Ein schnöde-ulkiges Orange
 
 vec3 opaqueMaterial(Marched hit, vec3 ray) {
     switch (hit.material) {
+        case LED_FRAME_MATERIAL:
+            return c.yyy;
+
         case LED_MATERIAL:
             return to_vec(ledColor[hit.ledIndex]);
 

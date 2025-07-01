@@ -10,14 +10,14 @@
 #include <GLFW/glfw3.h>
 
 #include <string>
+#include <imgui.h>
 #include "ShaderState.h"
 #include "TrophyShader.h"
 #include "Config.h"
 #include "inputHelpers.h"
-#include "WebSocketListener.h"
 #include "UdpListener.h"
 #include "UdpInterpreter.h"
-#include <imgui.h>
+
 
 class SimulatorApp {
 public:
@@ -68,10 +68,7 @@ private:
     UdpListener* udpListener;
     std::optional<ProtocolMessage> lastUdpMessage;
     void handleMessages();
-
-    [[maybe_unused]]
-    WebSocketListener* wsListener;
-    // <-- not "maybe unused". This idea is just unused.
+    std::optional<LED> udpDebugColor;
 
     static void showError(const std::string & message);
 };

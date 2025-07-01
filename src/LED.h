@@ -30,6 +30,10 @@ public:
 
     LED(): LED(0) {}
 
+    bool operator==(const LED& other) const {
+        return r == other.r && g == other.g && b == other.b;
+    }
+
     static LED from(const std::vector<int>& array, size_t fromIndex = 0) {
         return LED(array[fromIndex],
                    array[fromIndex + 1],

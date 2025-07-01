@@ -204,7 +204,6 @@ public:
         glm::vec4* vecValues = reinterpret_cast<glm::vec4*>(values.data());
         clickedLedIndex_ = std::nullopt;
 
-        float testSum = 0.;
         int rangeMinX = 10000;
         int rangeMaxX = -1;
         int rangeMinY = 10000;
@@ -217,7 +216,6 @@ public:
                 auto index = x + rect_.width * y;
                 auto value = vecValues[index];
                 testOutput_[index] = value.x;
-                testSum += testOutput_[index];
 
                 if (value.x != 0.) {
                     // std::cout << "Woah! " << x << ", " << y << " = " << thing << std::endl;
@@ -241,8 +239,6 @@ public:
                 }
             }
         }
-        std::cout << "TEST SUM: " << testSum << " -- ";
-        print("Rect", rect_);
         std::cout << " -- LedIndex: " << rangeMinLedIndex
                   << " .. " << rangeMaxLedIndex << " -- "
                   << std::endl;

@@ -24,6 +24,8 @@ private:
     // <-- UDP message size as limited by WLED:
     // https://kno.wled.ge/interfaces/udp-realtime/
 
+    size_t receivedPackages_ = 0;
+
 public:
     explicit UdpListener(int port)
     : port(port)
@@ -53,6 +55,7 @@ public:
         if (!package.has_value()) {
             return std::nullopt;
         }
+        receivedPackages_++;
         return RawMessage{
                 .values = decodeIntegers(package.value()),
                 .source = to_string(package.value().sender)
@@ -73,6 +76,8 @@ public:
         return values;
     }
 
+    [[nodiscard]]
+    size_t receivedPackages() { return receivedPackages_; }
 };
 
 #endif //DLTROPHY_SIMULATOR_UDPLISTENER_H

@@ -29,6 +29,8 @@ struct LiveviewMessage {
 };
 
 class WebSocketListener {
+    // unused since the UdpListener now works
+
 public:
     enum class State {
         Disconnected,

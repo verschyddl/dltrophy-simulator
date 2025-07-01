@@ -5,12 +5,14 @@
 #ifndef DLTROPHY_SIMULATOR_UDPINTERPRETER_H
 #define DLTROPHY_SIMULATOR_UDPINTERPRETER_H
 
-#include "../LED.h"
-#include "UdpListener.h"
 #include <map>
 #include <optional>
 #include <format>
-#include <time.h>
+#include <ctime>
+
+#include "../LED.h"
+#include "UdpListener.h"
+#include "timeFormat.h"
 
 enum class RealtimeProtocol {
     // cf. https://kno.wled.ge/interfaces/udp-realtime/
@@ -57,8 +59,6 @@ const std::unordered_map<RealtimeProtocol, IndexStride> protocolStride{
 
 using AnyMessage = std::variant<ProtocolMessage, UnreadableMessage>;
 
-static bool firstMessageWasLogged = false;
-
 class UdpInterpreter {
 public:
 
@@ -97,17 +97,9 @@ public:
                     return UnreadableMessage{"Invalid Protocol", message};
             }
 
-            if (!firstMessageWasLogged) {
-                std::cout << "INTERPRET INDEX " << std::setw(3) << i
-                          << ": " << message.values[i]
-                          << " -- " << led.toString()
-                          << std::endl;
-            }
-
-            result.mapping[ledIndex] = std::move(led);
+            result.mapping[ledIndex] = led;
         }
 
-        firstMessageWasLogged = true;
         return result;
     }
 

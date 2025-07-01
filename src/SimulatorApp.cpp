@@ -260,6 +260,10 @@ void SimulatorApp::handleMouseInput() {
 }
 
 void SimulatorApp::handleMessages() {
+    if (!udpListener->runsOn(config.udpPort)) {
+        delete udpListener;
+        udpListener = new UdpListener(config.udpPort);
+    }
     auto udpPacket = udpListener->listen();
 
     if (!udpPacket.has_value()) {
@@ -274,6 +278,14 @@ void SimulatorApp::handleMessages() {
         if constexpr (std::is_same_v<T, ProtocolMessage>) {
             state->setMultiple(msg.mapping);
             this->lastUdpMessage = msg;
+
+            if (auto it = msg.mapping.find(0); it != msg.mapping.end()) {
+                auto debugLed = it->second;
+                if (this->udpDebugColor != debugLed) {
+                    std::cout << "[UDP DEBUG COLOR] Changed to " << debugLed.toString() << std::endl;
+                    this->udpDebugColor = debugLed;
+                }
+            }
 
         } else if constexpr (std::is_same_v<T, UnreadableMessage>) {
             if (this->state->verbose) {
@@ -554,4 +566,13 @@ void SimulatorApp::printDebug() const {
         }
     }
     std::cout << std::endl;
+
+    /*
+     *  // might be used to debug UDP message
+        std::cout << "INTERPRET INDEX " << std::setw(3) << i
+                  << ": " << message.values[i]
+                  << " -- " << led.toString()
+                  << std::endl;
+     */
+    std::cout << "[UdpListener] # Packages Received: " << udpListener->receivedPackages() << std::endl;
 }
