@@ -68,7 +68,6 @@ private:
     UdpListener* udpListener;
     std::optional<ProtocolMessage> lastUdpMessage;
     void handleMessages();
-    std::optional<LED> udpDebugColor;
 
     static void showError(const std::string & message);
 };
