@@ -44,8 +44,6 @@ struct Trophy {
 
     glm::vec3 posMin{}, posMax{};
 
-    static const bool showSingleWhites = false; // enable when shader is more advanced
-
     Trophy() {
         rebuild();
     }
@@ -80,9 +78,6 @@ struct Trophy {
                 };
             }
             else {
-                if (!showSingleWhites) {
-                    break;
-                }
                 if (i == floorLedIndex) {
                     absolute = floorLedPos;
                 }

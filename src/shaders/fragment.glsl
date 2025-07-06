@@ -19,11 +19,11 @@ const int SCENE_PASS = 1;
 const int POST_PASS = 2;
 bool onlyLeds = iPass == ONLY_LEDS_PASS;
 
-const int nLeds = 172; // needed the possible maximum as const instead of uniform ...
+const int nLeds = 172; // needed hardcode to be used in the uniform layout below
 
 layout(std140) uniform TrophyDefinition {
-    int nLedsActive; // ... and less can be shown with this one (for debugging reasons)
-    vec4 ledPosition[nLeds]; // ... because of this array size here ...
+    int _nLedsWouldNotWorkThatWay;
+    vec4 ledPosition[nLeds];
 };
 
 struct RGB { // last value is only for alignment, never used.
@@ -305,7 +305,7 @@ Marched sdScene(vec3 p) {
     bool isCloser;
 
     p *= pyramidRotation;
-    for (int i = 0; i < nLedsActive; i++) {
+    for (int i = 0; i < nLeds; i++) {
         if (i >= 64 && i < 64 + 106) {
             sd = sdZCylinder(p - ledPosition[i].xyz, ledSize * 1.1, 0.0001, ledSize * 0.5);
             if (updatedHit(hit, sd)) {
@@ -473,12 +473,12 @@ vec3 opaqueMaterial(Marched hit, vec3 ray) {
             base = pow(base, c.xxx * 1.4);
 
             vec3 lights = c.yyy;
-            for (int i = 0; i < nLedsActive; i++) {
+            for (int i = 0; i < nLeds; i++) {
                 float sd = distance(ray, ledPosition[i].xyz);
                 float w = exp(-ledGlow * sd);
                 lights += w * to_vec(ledColor[i]);
             }
-            base += lights / float(nLedsActive);
+            base += lights / float(nLeds);
             return base;
 
         case PYRAMID_FRAME_MATERIAL:
