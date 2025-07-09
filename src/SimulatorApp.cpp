@@ -439,7 +439,7 @@ void SimulatorApp::buildControlPanel() {
 
         ImGui::SliderFloat("Camera FOV",
                            &state->params.camFov,
-                           0.1f, 2.1f);
+                           0.1f, 4.f);
         ImGui::SliderFloat("Camera Tilt",
                            &state->params.camTilt,
                            -60.f, 60.f);
@@ -510,21 +510,15 @@ void SimulatorApp::buildControlPanel() {
 
         ImGui::PushItemWidth(0.24f * panelWidth);
 
-        ImGui::SliderFloat("##MinDistance",
-                           &state->params.traceMinDistance,
-                           0.001, 1.);
-        ImGui::SameLine();
         ImGui::SliderFloat("##MaxDistance",
                            &state->params.traceMaxDistance,
                            1., 1000.);
         ImGui::SameLine();
-        ImGui::Text("March Limits");
-
         ImGui::SliderInt("##MaxRecursions",
-                           &state->params.traceMaxRecursions,
-                           1, 32);
+                         &state->params.traceMaxRecursions,
+                         1, 32);
         ImGui::SameLine();
-        ImGui::Text("Max. Recursions");
+        ImGui::Text("max. Distance & Recursions");
 
         ImGui::PopItemWidth();
 
