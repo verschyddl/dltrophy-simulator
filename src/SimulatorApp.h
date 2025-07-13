@@ -17,7 +17,7 @@
 #include "inputHelpers.h"
 #include "UdpListener.h"
 #include "UdpInterpreter.h"
-
+#include "PerformanceMonitor.h"
 
 class SimulatorApp {
 public:
@@ -40,6 +40,8 @@ private:
     void handleResize();
     ImGuiWindowFlags imguiFlags = 0;
     void buildControlPanel();
+
+    static void showError(const std::string & message);
 
     KeyMap keyMap;
     void initializeKeyMap();
@@ -69,7 +71,7 @@ private:
     std::optional<ProtocolMessage> lastUdpMessage;
     void handleMessages();
 
-    static void showError(const std::string & message);
+    PerformanceMonitor* monitor;
 };
 
 #endif //DLTROPHY_SIMULATOR_SIMULATORAPP_H

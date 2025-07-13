@@ -33,7 +33,8 @@ struct Parameters {
     float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
     float fogScaling, fogGrading, backgroundSpin;
-    float floorLevel, floorSpacingX, floorSpacingZ,
+    float floorLevel, floorGraytone, floorLineBrightness,
+          floorSpacingX, floorSpacingZ,
           floorLineWidth, floorExponent, floorGrading;
     float pyramidX, pyramidY, pyramidZ,
           pyramidScale, pyramidHeight,
@@ -66,6 +67,8 @@ struct ShaderState {
         .fogGrading = 2.2,
         .backgroundSpin = 0.1,
         .floorLevel = -4.,
+        .floorGraytone = 0.1,
+        .floorLineBrightness = 0.8,
         .floorSpacingX = 2.21,
         .floorSpacingZ = 5.21,
         .floorLineWidth = .05,

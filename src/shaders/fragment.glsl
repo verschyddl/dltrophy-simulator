@@ -35,7 +35,8 @@ layout(std140) uniform StateBuffer {
     float ledSize, ledGlow;
     float camX, camY, camZ, camFov, camTilt;
     float fogScaling, fogGrading, backgroundSpin;
-    float floorLevel, floorSpacingX, floorSpacingZ,
+    float floorLevel, floorGraytone, floorLineBrightness,
+          floorSpacingX, floorSpacingZ,
           floorLineWidth, floorExponent, floorGrading;
     float pyramidX, pyramidY, pyramidZ,
           pyramidScale, pyramidHeight,
@@ -464,8 +465,7 @@ vec3 opaqueMaterial(Marched hit, vec3 ray) {
             f = pow(f, vec2(floorExponent));
             float g = pow(f.x+f.y, 1./floorGrading);
             g = clamp(g, 0., 1.);
-            const vec3 dark = 0.3 * vec3(.2, .1, .32);
-            return mix(dark, floorColor, g);
+            return mix(vec3(floorGraytone), floorLineBrightness * floorColor, g);
 
         case PYRAMID_MATERIAL:
             float frameSd = sdPyramidFrame(ray);

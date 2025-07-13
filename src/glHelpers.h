@@ -135,17 +135,24 @@ public:
         set();
     }
 
-    void printDebug() const {
-        std::string printValue;
+    std::string to_string() {
+        std::string result;
         if constexpr (std::is_same_v<T, glm::vec4>) {
-            printValue = std::format("vec4({}, {}, {}, {})", value.x, value.y, value.z, value.w);
+            result = std::format("vec4({}, {}, {}, {})", value.x, value.y, value.z, value.w);
         } else {
             // add other cases when they actually occur
-            printValue = std::format("{}", value);
+            result = std::format("{}", value);
         }
-        std::cout << "[Debug Uniform] "
-                  << std::format("uniform (location = {}) {} = {};", location, name, printValue)
-                  << std::endl;
+        if (triedLoadLocation) {
+            return std::format("{} = {} (location {})", name, result, location);
+        } else {
+            return std::format("{} = {} (no location)", name, result);
+        }
+    }
+
+    void printDebug() const {
+        std::string printValue = to_string();
+        std::cout << "[Debug Uniform] " << to_string() << ";" << std::endl;
     }
 };
 

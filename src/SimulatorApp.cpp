@@ -9,6 +9,7 @@
 #include "SimulatorApp.h"
 #include "UdpInterpreter.h"
 #include "timeFormat.h"
+#include "PerformanceMonitor.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -37,6 +38,9 @@ SimulatorApp::SimulatorApp(Config config)
     shader->assertSuccess(showError);
 
     udpListener = new UdpListener(config.udpPort);
+
+    // WIP: for measuring the FPS drops (goes to 1-2... then resizing the window solves the problem)
+    // monitor = new PerformanceMonitor("perf.measure");
 
     initializeKeyMap();
 }
@@ -110,9 +114,6 @@ void SimulatorApp::handleWindowError(int error, const char* description) {
 }
 
 void SimulatorApp::run() {
-    // TODO: replace when we have a better idea for development
-    state->randomize();
-
     startTimestamp = static_cast<float>(glfwGetTime());
     currentTime = 0;
     currentFrame = 0;
@@ -459,6 +460,12 @@ void SimulatorApp::buildControlPanel() {
         ImGui::SliderFloat("Synthwave Floor Level",
                            &state->params.floorLevel,
                            -10.f, 5.f);
+        ImGui::SliderFloat("Synthwave Floor Graytone",
+                           &state->params.floorGraytone,
+                           0.f, 1.f);
+        ImGui::SliderFloat("Synthwave Grid Brightness",
+                           &state->params.floorLineBrightness,
+                           0.f, 1.f);
         ImGui::SliderFloat("Synthwave Grid Thickness",
                            &state->params.floorLineWidth,
                            0.001f, 1.f);
@@ -518,7 +525,7 @@ void SimulatorApp::buildControlPanel() {
                          &state->params.traceMaxRecursions,
                          1, 32);
         ImGui::SameLine();
-        ImGui::Text("max. Distance & Recursions");
+        ImGui::Text("max. Depth & Recursions");
 
         ImGui::PopItemWidth();
 

@@ -66,22 +66,16 @@ add_executable(${PROJECT_NAME}
         src/Config.cpp
         src/Config.h
         src/Trophy.h
-        src/messages/WebSocketListener.h
-        src/messages/UdpListener.h
-        src/messages/UdpInterpreter.h
         src/inputHelpers.h
         src/geometryHelpers.h
         src/debug.h
 
-        src/prototype-WIP/compat/compat.h
-        src/prototype-WIP/compat/FX.h
-        src/prototype-WIP/compat/pixeltypes.h
-        src/prototype-WIP/compat/lib8tion_compat.h
-        src/prototype-WIP/compat/colorutils_compat.h
-        src/prototype-WIP/compat/bus_compat.h
-        src/prototype-WIP/compat/bus_manager_compat.h
-        src/prototype-WIP/Prototyper.h
+        src/messages/WebSocketListener.h
+        src/messages/UdpListener.h
+        src/messages/UdpInterpreter.h
         src/messages/timeFormat.h
+        src/monitor/PerformanceMonitor.h
+        src/monitor/Observables.h
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -96,11 +90,11 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
         src/messages
+        src/monitor
         thirdparty/glad/include
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
         ${imgui_SOURCE_DIR}/misc/cpp/
-        src/prototype-WIP/compat
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
