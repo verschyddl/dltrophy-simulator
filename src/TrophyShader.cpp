@@ -64,7 +64,14 @@ void TrophyShader::onRectChange(Size resolution, const Config& config) {
     auto rect = config.shaderRect(resolution);
     iRect.value = glm::vec4(rect.x, rect.y, rect.width, rect.height);
     initVertices();
-    initFramebuffers(rect);
+    try {
+        initFramebuffers(rect);
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR in initFramebuffers: " << e.what()
+                  << " (Size: " << rect.maxX() << "x" << rect.maxY() << ")" << std::endl;
+        throw e;
+    }
+
     extraOutputs.initialize(rect);
     glViewport(rect.x, rect.y, rect.width, rect.height);
 }
@@ -233,7 +240,7 @@ void TrophyShader::initFramebuffers(const Rect& rect) {
         attachFramebufferFloatTexture(extraOutputTexture[i],
                                       extraOutputAttachment,
                                       size);
-        feedbackFramebuffers.assertStatus(i);
+        feedbackFramebuffers.assertStatus(i, "extra");
     }
 
     ledsOnly.initialize();

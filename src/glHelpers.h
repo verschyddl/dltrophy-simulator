@@ -231,12 +231,12 @@ struct FramebufferPingPong {
         return result;
     }
 
-    void assertStatus(int i) {
+    void assertStatus(int i, const std::string& debugLabel = "") {
         status[i] = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status[i] != GL_FRAMEBUFFER_COMPLETE) {
             throw std::runtime_error(std::format(
-                    "Error in Ping Pong Framebuffer {}: {} ({})",
-                    i, Framebuffer::StatusMessages.at(status[i]), status[i]
+                    "Error in Ping Pong Framebuffer {}: {} ({}) {}",
+                    i, Framebuffer::StatusMessages.at(status[i]), status[i], debugLabel
             ));
         }
     }
