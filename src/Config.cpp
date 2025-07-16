@@ -18,9 +18,11 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
         Parameters,
-        ledSize, ledGlow, camX, camY, camZ, camFov, camTilt,
+        ledSize, ledGlow,
+        camX, camY, camZ, camFov, camTilt,
         fogScaling, fogGrading, backgroundSpin,
-        floorLevel, floorSpacingX, floorSpacingZ,
+        floorLevel, floorGraytone, floorLineBrightness,
+        floorSpacingX, floorSpacingZ,
         floorLineWidth, floorExponent, floorGrading,
         pyramidX, pyramidY, pyramidZ,
         pyramidScale, pyramidHeight,
