@@ -4,7 +4,7 @@ absolute elite of carefully selected indviduals that actually own a Deadline 202
 
 To simulate, you know?
 
-[[https://github.com/qm210/dltrophy-simulator/screenshot_smiuluator_jul16.jpg|Screenshot Jul 16]]
+[[https://github.com/qm210/dltrophy-simulator/screenshot_smiuluator_jul16.jpg]]
 
 Read below.
 
