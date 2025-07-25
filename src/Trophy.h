@@ -61,20 +61,20 @@ struct Trophy {
             glm::vec2 relative;
             glm::vec3 absolute;
 
-            if (isLogo[i]) {
-                relative = parse_logo_order(i - logoStartIndex);
-                absolute = glm::vec3{
-                    logoCenter.x + logoSize.x * relative.x,
-                    logoCenter.y + logoSize.y * relative.y,
-                    logoCenter.z
-                };
-            }
-            else if (isBase[i]) {
+            if (isBase[i]) {
                 relative = calc_base_order(i - baseStartIndex);
                 absolute = glm::vec3{
-                    baseCenter.x + baseSize * relative.x,
-                    baseCenter.y,
-                    baseCenter.z + baseSize * relative.y
+                        baseCenter.x + baseSize * relative.x,
+                        baseCenter.y,
+                        baseCenter.z + baseSize * relative.y
+                };
+            }
+            else if (isLogo[i]) {
+                relative = parse_logo_order(i - logoStartIndex);
+                absolute = glm::vec3{
+                        logoCenter.x + logoSize.x * relative.x,
+                        logoCenter.y + logoSize.y * relative.y,
+                        logoCenter.z
                 };
             }
             else {
@@ -151,25 +151,41 @@ struct Trophy {
         };
     }
 
+    static constexpr glm::vec2 baseCorner[4] = {
+        {+0.5f, +0.5f},
+        {+0.5f, -0.5f},
+        {-0.5f, -0.5f},
+        {-0.5f, +0.5f},
+    };
+
     static glm::vec2 calc_base_order(int base_index) {
         int N_EDGE = N_LEDS_IN_BASE / 4;
-        float edge_step = 1.f / float(N_EDGE - 1 + 2);
-        int base_edge = base_index / N_EDGE;
+        int edge_index = base_index / N_EDGE;
 
-        if (base_edge > 0 && base_edge < 3) {
-            int y_index = (base_index % (2 * N_EDGE)) / 2;
-            return glm::vec2{
-                    -0.5f + (base_index % 2),
-                    -0.5f + edge_step * (1 + y_index)
-            };
-        }
-        else {
-            int x_index = base_index % N_EDGE;
-            return glm::vec2{
-                    -0.5f + edge_step * (1 + x_index),
-                    -0.5f + (base_edge > 0)
-            };
-        }
+        // Note: "Shifted" by 0.5f because of the corner margin (no LED there)
+        const float shift = 0.5f;
+        auto step_in_edge = static_cast<float>(base_index % N_EDGE) + shift;
+        auto step_length = 1.f / (static_cast<float>(N_EDGE - 1) + 2 * shift);
+
+        auto from = baseCorner[edge_index % 4];
+        auto to = baseCorner[(edge_index + 1) % 4];
+        glm::vec2 delta = (to - from) * step_length;
+        return from + delta * step_in_edge;
+//
+//        if (edge_index > 0 && edge_index < 3) {
+//            int y_index = (base_index % (2 * N_EDGE)) / 2;
+//            return glm::vec2{
+//                    -0.5f + (base_index % 2),
+//                    -0.5f + step_length * (1 + y_index)
+//            };
+//        }
+//        else {
+//            int x_index = base_index % N_EDGE;
+//            return glm::vec2{
+//                    -0.5f + step_length * (1 + x_index),
+//                    -0.5f + (edge_index > 0)
+//            };
+//        }
     }
 
     size_t alignedTotalSize() {

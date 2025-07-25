@@ -15,7 +15,8 @@ struct Size {
         return width > 0 && height > 0;
     }
 
-    int area() { return width * height; }
+    [[nodiscard]]
+    int area() const { return width * height; }
 };
 
 struct Coord {
@@ -49,8 +50,11 @@ struct Rect : public Size, public Coord {
         return result;
     }
 
+    [[nodiscard]]
     int maxX() const { return x + width; }
+    [[nodiscard]]
     int maxY() const { return y + height; }
+    [[nodiscard]]
     Size extent() const { return {maxX(), maxY()}; }
 
 };
