@@ -1,0 +1,27 @@
+.idea/
+.vscode/
+.git/
+.gitignore
+
+cmake-build-*/
+build/
+out/
+*.o
+*.a
+*.so
+*.exe
+*.dll
+*.obj
+*.log
+*.swp
+*.swo
+*.tmp
+.*.swp
+CMakeCache.txt
+CMakeFiles/
+
+*.jpg
+TODO
+
+# for now, ignore the tools
+tools/

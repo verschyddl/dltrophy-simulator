@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
-set(CMAKE_CXX_STANDARD 20)
-
 project(dltrophy_simulator)
+set(CMAKE_CXX_STANDARD 20)
 
 find_package(OpenGL REQUIRED)
 include(FetchContent)
@@ -108,4 +107,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 
 # also, some tools for testing, debugging or wholesome jux
-add_subdirectory(tools)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+    add_subdirectory(tools)
+endif()
