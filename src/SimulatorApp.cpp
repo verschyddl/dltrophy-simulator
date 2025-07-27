@@ -15,6 +15,12 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_stdlib.h>
 
+#ifdef _WIN32
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+#endif
+
+
 SimulatorApp::SimulatorApp(Config config)
 : config(config) {
 
@@ -41,6 +47,8 @@ SimulatorApp::SimulatorApp(Config config)
 
     // WIP: for measuring the FPS drops (goes to 1-2... then resizing the window solves the problem)
     // monitor = new PerformanceMonitor("perf.measure");
+
+    prototyper = new Prototyper(config.usePrototyper);
 
     initializeKeyMap();
 }
@@ -140,6 +148,9 @@ void SimulatorApp::run() {
 
         handleMessages();
 
+        prototyper->service();
+        // monitor-> ... // TODO
+
         shader->mightHotReload(config);
     }
 
@@ -168,7 +179,6 @@ float SimulatorApp::calcAverageFps() {
 
 // there should be many implementations, but this one is enough for now
 #ifdef _WIN32
-    #include <windows.h>
     void SimulatorApp::showError(const std::string &message) {
         MessageBoxA(nullptr, message.c_str(), "Error", MB_OK | MB_ICONERROR);
         std::cerr << message << std::endl;
@@ -203,6 +213,11 @@ void SimulatorApp::initializeKeyMap() {
         GLFW_KEY_F1,
         [this](int mods) {
             toggle(state->verbose);
+        }
+    }, {
+        GLFW_KEY_F12,
+        [this](int mods) {
+            prototyper->toggle();
         }
     }, {
         GLFW_KEY_G,
@@ -305,14 +320,16 @@ void SimulatorApp::buildControlPanel() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    float panelMargin = 0.013 * area.width;
-    float panelWidth = config.relativeRemainingWidth() * area.width - panelMargin;
+    float width = static_cast<float>(area.width);
+    float height = static_cast<float>(area.height);
+    float panelMargin = 0.013 * width;
+    float panelWidth = config.relativeRemainingWidth() * width - panelMargin;
     ImGui::SetNextWindowPos(
-            ImVec2(area.width - panelWidth - panelMargin, panelMargin),
+            ImVec2(width - panelWidth - panelMargin, panelMargin),
             ImGuiCond_Always
     );
     ImGui::SetNextWindowSize(
-            ImVec2(panelWidth, area.height - 2. * panelMargin),
+            ImVec2(panelWidth, height - 2. * panelMargin),
             ImGuiCond_Always
     );
 

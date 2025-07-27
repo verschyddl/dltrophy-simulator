@@ -75,6 +75,20 @@ add_executable(${PROJECT_NAME}
         src/messages/timeFormat.h
         src/monitor/PerformanceMonitor.h
         src/monitor/Observables.h
+
+        src/prototyper/Prototyper.h
+        src/prototyper/fx/FX.h
+        src/prototyper/usermods/DEADLINE_TROPHY/DeadlineTrophy.cpp
+        src/prototyper/fx/wled/shim.cpp
+        src/prototyper/fx/wled/wled_math.cpp
+        src/prototyper/fx/wled/const.h
+        src/prototyper/fx/lib/pixeltypes.h
+        src/prototyper/fx/lib/lib8tion.h
+        src/prototyper/fx/lib/hsv2rgb.h
+        src/prototyper/fx/lib/fastled_defines.h
+        src/prototyper/fx/lib/hsv2rgb.cpp
+        src/prototyper/fx/lib/colorutils.cpp
+        src/prototyper/Prototyper.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -94,6 +108,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
         ${imgui_SOURCE_DIR}/misc/cpp/
+
+        src/prototyper
+        src/prototyper/fx
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

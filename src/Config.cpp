@@ -46,8 +46,8 @@ inline void overwrite_if_path_exists(int opt, int targetOpt, std::string& target
 
 Config::Config(int argc, char **argv) {
     std::string configFilename = defaultFilename;
-    std::string overwriteVertexShaderPath = "";
-    std::string overwriteFragmentShaderPath = "";
+    std::string overwriteVertexShaderPath;
+    std::string overwriteFragmentShaderPath;
 
     int opt;
     while ((opt = getopt(argc, argv, "c:f:v:")) != -1) {
@@ -139,6 +139,9 @@ bool Config::tryReadFile() {
             hotReloadShaders = jShaders.value("reload", hotReloadShaders);
         }
 
+        udpPort = currentJson->value("udpPort", udpPort);
+        usePrototyper = currentJson->value("usePrototyper", usePrototyper);
+
         return true;
 
     } catch (const std::exception& e) {
@@ -167,6 +170,8 @@ void Config::store(GLFWwindow* window, ShaderState* state) const {
        {"fragment", customFragmentShaderPath},
        {"reload", hotReloadShaders}
     };
+    j["udpPort"] = udpPort;
+    j["usePrototyper"] = usePrototyper;
 
     if (state != nullptr) {
         j["params"] = state->params;
@@ -200,13 +205,6 @@ void Config::store(GLFWwindow* window, ShaderState* state) const {
 
     } catch (const std::exception& e) {
         std::cerr << "Error storing Config: " << e.what() << std::endl;
-    }
-}
-
-template <typename Type>
-static inline void setIfZero(Type& value, Type defaultValue) {
-    if (value == 0) {
-        value = defaultValue;
     }
 }
 

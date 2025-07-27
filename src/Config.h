@@ -29,6 +29,8 @@ public:
     std::string customFragmentShaderPath;
     bool hotReloadShaders = true;
 
+    bool usePrototyper = false;
+
     Config(int argc, char* argv[]);
 
     void store(GLFWwindow* window, ShaderState* state = nullptr) const;

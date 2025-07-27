@@ -1,0 +1,10 @@
+... as it wouldn't make much sense.
+
+These headers are only shim versions to make the Simulator Prototyper work,
+and mostly taken from the WLED / FastLED sources -> Go there for the real stuff.
+
+Just thought I'd leave a warning.
+
+eom.
+
+(is it valid to put a dot behind "eom"? probably not.)

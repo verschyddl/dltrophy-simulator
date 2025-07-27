@@ -17,7 +17,8 @@
 #include "inputHelpers.h"
 #include "UdpListener.h"
 #include "UdpInterpreter.h"
-#include "PerformanceMonitor.h"
+#include "prototyper/Prototyper.h" // <-- WIP
+#include "PerformanceMonitor.h" // <-- not finished
 
 class SimulatorApp {
 public:
@@ -70,6 +71,8 @@ private:
     UdpListener* udpListener;
     std::optional<ProtocolMessage> lastUdpMessage;
     void handleMessages();
+
+    Prototyper* prototyper;
 
     PerformanceMonitor* monitor;
 };
