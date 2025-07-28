@@ -188,7 +188,7 @@ uint16_t mode_DeadlineTrophy(void) {
 
             intensity = dist_x > 0 ? exp(-dist_x / size) : 0.;
             color.hue = color_.hue - 90. * intensity;
-            color.sat = color_.sat * intensity;
+            color.sat = 255; // color_.sat * intensity;
             // some annoying blinking, for now.
             color.val = static_cast<uint8_t>(255.f * exp(-0.003 * (strip.now % 2000)));
 

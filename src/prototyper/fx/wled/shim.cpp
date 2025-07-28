@@ -69,10 +69,21 @@ int32_t random(int32_t lowerlimit, int32_t upperlimit) {
 // I removed some case distinctions that I deemed irrelevant,
 // but kept most of the comments for... some reason
 
-void Segment::setPixelColor(int i, uint32_t col) const
-{
+void Segment::setPixelColorXY(int x, int y, uint32_t col) const {
+    if (!isActive()) return; // not active
+    if (x >= (int)vWidth() || y >= (int)vHeight() || x < 0 || y < 0) return;  // if pixel would fall out of virtual segment just exit
+    setPixelColorXYRaw(x, y, col);
+}
+
+uint32_t Segment::getPixelColorXY(int x, int y) const {
+    if (!isActive()) return 0; // not active
+    if (x >= (int)vWidth() || y >= (int)vHeight() || x<0 || y<0) return 0;  // if pixel would fall out of virtual segment just exit
+    return getPixelColorXYRaw(x,y);
+}
+
+void Segment::setPixelColor(int i, uint32_t col) const {
     // qm210: with comments as taken from the original source,
-    //
+    //        but a bit reduced in branches I considered irrelevant
 
     if (!isActive() || i < 0) return; // not active or invalid index
 

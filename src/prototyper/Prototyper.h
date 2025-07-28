@@ -20,6 +20,7 @@
 
 #include <chrono>
 #include <vector>
+#include <iostream>
 
 #define WORKAROUND_GL
 #include "../LED.h"
@@ -157,9 +158,6 @@ public:
                 led.set(led.gray());
             }
 
-            // for Debugging: this should show something
-            // led = LED(i, 0, i);
-
             leds.push_back(led);
 
             indexInSegment++;
@@ -176,7 +174,7 @@ private:
     void setUpDeadlineTrophy() const {
         Segment::maxWidth = DeadlineTrophy::logoW;
         Segment::maxHeight = DeadlineTrophy::logoH + DeadlineTrophy::baseSize;
-        // <-- could just be logoH, right? (the larger one of these).
+            // <-- could just be logoH, right? (the larger one of these).
 
         strip._segments.assign(
                 DeadlineTrophy::segment,
@@ -190,10 +188,22 @@ private:
 
         for (size_t i = 0; i < DeadlineTrophy::N_SEGMENTS; i++) {
             Segment& seg = strip.getSegment(i);
+            seg.on = true;
             seg._capabilities = DeadlineTrophy::segmentCapabilities[i];
+            seg.name = (char*)DeadlineTrophy::segmentName[i];
+
+            // these are just my current defaults in the firmware colors:
             seg.colors[0] = 0xAA00FF;
             seg.colors[1] = 0xFF40FF;
             seg.colors[2] = 0xFFFFFF;
+
+            // idea: these could be used to send UDP information (fake Audio signal etc.)
+            seg.aux0 = 0;
+            seg.aux1 = 0;
+
+            // no idea whether we have any use for changing these...
+            seg.freeze = false;
+            seg.map1D2D = 0;
         }
     }
 
@@ -217,7 +227,7 @@ private:
         /*
          * We obviously do not need any of the hardware or extra stuff from WS2812FX::show()
          * i.e. this just reads all the segments into the overall pixels.
-         *      there is also no blending of any kind (segments don't overlap in any way)
+         *      there is also no blending of any kind (segments do not overlap)
         */
 
         for (size_t i = 0; i < strip._length; i++) {
@@ -228,16 +238,33 @@ private:
                 continue;
             }
 
-            size_t segIndex = 0;
-            for (size_t x = seg.start; x < seg.stop; x++)
-            for (size_t y = seg.startY; y < seg.stopY; y++) {
-                auto mapIndex = x + y * Segment::maxWidth;
-                auto ledIndex = DeadlineTrophy::mappingTable[mapIndex];
-                if (ledIndex >= strip._length) {
-                    continue;
+            bool debugging = seg.call == 1;
+            std::vector<uint32_t> debugPixels(seg.pixels, seg.pixels + seg.length());
+
+            auto width = seg.width();
+            auto height = seg.height();
+            for (size_t y = 0; y < height; y++)
+            for (size_t x = 0; x < width; x++) {
+                auto indexInSegment = x + y * width;
+                auto indexInMapping = (x + seg.start) + (y + seg.startY) * Segment::maxWidth;
+                auto indexInTrophy = DeadlineTrophy::mappingTable[indexInMapping];
+                auto color = seg.getPixelColorRaw(indexInSegment);
+
+                if (debugging) {
+                    std::cout << "-- debug mapping: ("
+                              << x << ", " << y << ") "
+                              << seg.name
+                              << " inSegment: " << indexInSegment << "/" << seg.length()
+                              << " inMapping: " << indexInMapping
+                              << " inTrophy: " << indexInTrophy
+                              << " - color: " << color << " ("
+                              << (int)R(color) << " / " << (int)G(color) << " / " << (int)B(color) << ")"
+                              << std::endl;
                 }
-                strip._pixels[ledIndex] = seg.getPixelColorRaw(segIndex);
-                segIndex++;
+
+                if (indexInTrophy < strip._length) {
+                    strip._pixels[indexInTrophy] = color;
+                }
             }
         }
     }

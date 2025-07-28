@@ -57,10 +57,10 @@ struct Segment {
     uint16_t startY;
     uint16_t stopY;
 
-    uint32_t *pixels;
+    uint32_t *pixels = nullptr;
     mutable uint8_t _capabilities;
     uint32_t colors[NUM_COLORS];
-    const char *name = "--name--unsupported--";
+    char *name;
 
     Segment(uint16_t sStart = 0, uint16_t sStop = 0, uint16_t sStartY = 0, uint16_t sStopY = 0)
       : start(sStart),
@@ -70,6 +70,7 @@ struct Segment {
         colors{DEFAULT_COLOR,BLACK,BLACK}
     {
         pixels = new uint32_t[length()]{};
+        name = (char*)"--unnamed--";
     }
 
     Segment(const Segment&) = default;
@@ -78,6 +79,7 @@ struct Segment {
     Segment& operator=(Segment&&) = default;
 
     ~Segment() {
+        auto len = length();
         delete[] pixels;
     }
 
@@ -90,7 +92,7 @@ struct Segment {
 
     mutable bool on;
     mutable bool freeze;
-    uint8_t map1D2D = 0; // no idea whether to change this
+    uint8_t map1D2D;
     uint8_t soundSim;
     uint8_t opacity;
     uint8_t palette;
@@ -128,16 +130,11 @@ struct Segment {
 
     inline void     setPixelColorRaw(unsigned i, uint32_t c) const  { pixels[i] = c; }
     inline uint32_t getPixelColorRaw(unsigned i) const              { return pixels[i]; };
-    inline void     setPixelColorXY(unsigned x, unsigned y, uint32_t c) const { setPixelColor(y * Segment::maxWidth + x, c); }
-    inline void     setPixelColorXY(unsigned x, unsigned y, byte r, byte g, byte b, byte w = 0) const { setPixelColorXY(x, y, RGBW32(r,g,b,w)); }
-    inline void     setPixelColorXY(unsigned x, unsigned y, CRGB c) const     { setPixelColorXY(x, y, RGBW32(c.r,c.g,c.b,0)); }
-    inline uint32_t getPixelColorXY(unsigned x, unsigned y) const             { return getPixelColor(y * Segment::maxWidth + x); }
-
-    [[gnu::hot]] void setPixelColor(int n, uint32_t c) const; // set relative pixel within segment with color
-    inline void setPixelColor(unsigned n, uint32_t c) const                    { setPixelColor(int(n), c); }
-    inline void setPixelColor(int n, byte r, byte g, byte b, byte w = 0) const { setPixelColor(n, RGBW32(r,g,b,w)); }
-    inline void setPixelColor(int n, CRGB c) const                             { setPixelColor(n, RGBW32(c.r,c.g,c.b,0)); }
-    void setRawPixelColor(int i, uint32_t col) const                           { if (i >= 0 && i < length()) setPixelColorRaw(i,col); }
+    inline void     setPixelColorXYRaw(unsigned x, unsigned y, uint32_t c) const  { auto XY = [](unsigned X, unsigned Y){ return X + Y*Segment::vWidth(); }; pixels[XY(x,y)] = c; }
+    inline uint32_t getPixelColorXYRaw(unsigned x, unsigned y) const              { auto XY = [](unsigned X, unsigned Y){ return X + Y*Segment::vWidth(); }; return pixels[XY(x,y)]; };
+    [[gnu::hot]] void setPixelColorXY(int x, int y, uint32_t c) const;
+    [[gnu::hot]] uint32_t getPixelColorXY(int x, int y) const;
+    [[gnu::hot]] void setPixelColor(int n, uint32_t c) const;
     [[gnu::hot]] uint32_t getPixelColor(int i) const;
 
     void blur(uint8_t, bool smear = false) const;
