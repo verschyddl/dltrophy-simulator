@@ -81,58 +81,6 @@ uint32_t Segment::getPixelColorXY(int x, int y) const {
     return getPixelColorXYRaw(x,y);
 }
 
-void Segment::setPixelColor(int i, uint32_t col) const {
-    // qm210: with comments as taken from the original source,
-    //        but a bit reduced in branches I considered irrelevant
-
-    if (!isActive() || i < 0) return; // not active or invalid index
-
-    int vStrip = 0;
-    const int vL = vLength();
-    // if the 1D effect is using virtual strips "i" will have virtual strip id stored in upper 16 bits
-    // in such case "i" will be > virtualLength()
-    if (i >= vL) {
-        // check if this is a virtual strip
-        vStrip = i>>16; // hack to allow running on virtual strips (2D segment columns/rows)
-        i &= 0xFFFF;          // truncate vstrip index. note: vStrip index is 1 even in 1D, still need to truncate
-        if (i >= vL) return;  // if pixel would still fall out of segment just exit
-    }
-
-    const int vW = vWidth();   // segment width in logical pixels (can be 0 if segment is inactive)
-    const int vH = vHeight();  // segment height in logical pixels (is always >= 1)
-    const auto XY = [&](unsigned x, unsigned y){ return x + y*vW;};
-
-    if (map1D2D != 0) {
-        // SKIPPED: the switch(map1D2D) statement
-        throw std::runtime_error("setPixelColor()-shim only supports map1D2D == 0 (M12_Pixels).");
-    }
-
-    setPixelColorRaw(XY(i % vW, i / vW), col);
-}
-
-uint32_t Segment::getPixelColor(int i) const
-{
-    if (!isActive() || i < 0) return 0; // not active or invalid index
-
-    int vStrip = i>>16; // virtual strips are only relevant in Bar expansion mode
-    i &= 0xFFFF;
-    if (i >= (int)vLength()) return 0;
-
-    const int vW = vWidth();   // segment width in logical pixels (can be 0 if segment is inactive)
-    const int vH = vHeight();  // segment height in logical pixels (is always >= 1)
-    int x = 0, y = 0;
-
-    if (map1D2D != 0) {
-        // SKIPPED: the switch(map1D2D) statement
-        throw std::runtime_error("setPixelColor()-shim only supports map1D2D == 0 (M12_Pixels).");
-    }
-
-    x = i % vW;
-    y = i / vW;
-
-    return getPixelColorXY(x, y);
-}
-
 void Segment::fill(uint32_t c) const {
     if (!isActive()) return; // not active
     for (unsigned i = 0; i < length(); i++) setPixelColorRaw(i,c); // always fill all pixels (blending will take care of grouping, spacing and clipping)

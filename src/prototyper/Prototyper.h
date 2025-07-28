@@ -175,6 +175,7 @@ private:
         Segment::maxWidth = DeadlineTrophy::logoW;
         Segment::maxHeight = DeadlineTrophy::logoH + DeadlineTrophy::baseSize;
             // <-- could just be logoH, right? (the larger one of these).
+            // TODO: check the firmware if maxHeight can be logoH - could improve memory & performance
 
         strip._segments.assign(
                 DeadlineTrophy::segment,
@@ -238,9 +239,6 @@ private:
                 continue;
             }
 
-            bool debugging = seg.call == 1;
-            std::vector<uint32_t> debugPixels(seg.pixels, seg.pixels + seg.length());
-
             auto width = seg.width();
             auto height = seg.height();
             for (size_t y = 0; y < height; y++)
@@ -248,22 +246,9 @@ private:
                 auto indexInSegment = x + y * width;
                 auto indexInMapping = (x + seg.start) + (y + seg.startY) * Segment::maxWidth;
                 auto indexInTrophy = DeadlineTrophy::mappingTable[indexInMapping];
-                auto color = seg.getPixelColorRaw(indexInSegment);
-
-                if (debugging) {
-                    std::cout << "-- debug mapping: ("
-                              << x << ", " << y << ") "
-                              << seg.name
-                              << " inSegment: " << indexInSegment << "/" << seg.length()
-                              << " inMapping: " << indexInMapping
-                              << " inTrophy: " << indexInTrophy
-                              << " - color: " << color << " ("
-                              << (int)R(color) << " / " << (int)G(color) << " / " << (int)B(color) << ")"
-                              << std::endl;
-                }
 
                 if (indexInTrophy < strip._length) {
-                    strip._pixels[indexInTrophy] = color;
+                    strip._pixels[indexInTrophy] = seg.getPixelColorRaw(indexInSegment);
                 }
             }
         }

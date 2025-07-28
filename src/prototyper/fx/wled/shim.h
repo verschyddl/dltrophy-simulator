@@ -79,8 +79,9 @@ struct Segment {
     Segment& operator=(Segment&&) = default;
 
     ~Segment() {
-        auto len = length();
-        delete[] pixels;
+        if (pixels) {
+            delete[] pixels;
+        }
     }
 
     static uint16_t maxWidth, maxHeight;
@@ -134,8 +135,6 @@ struct Segment {
     inline uint32_t getPixelColorXYRaw(unsigned x, unsigned y) const              { auto XY = [](unsigned X, unsigned Y){ return X + Y*Segment::vWidth(); }; return pixels[XY(x,y)]; };
     [[gnu::hot]] void setPixelColorXY(int x, int y, uint32_t c) const;
     [[gnu::hot]] uint32_t getPixelColorXY(int x, int y) const;
-    [[gnu::hot]] void setPixelColor(int n, uint32_t c) const;
-    [[gnu::hot]] uint32_t getPixelColor(int i) const;
 
     void blur(uint8_t, bool smear = false) const;
     void clear() const { fill(BLACK); } // clear segment
@@ -201,7 +200,6 @@ struct ShimmlerMcShimface {
     uint8_t _segment_index;
     uint8_t _mainSegment;
 
-    inline uint8_t getSegmentsNum() const   { return _segments.size(); }
     inline uint8_t getCurrSegmentId() const { return _segment_index; }
     inline uint8_t getMainSegmentId() const { return _mainSegment; }      // returns main segment index
     inline Segment& getSegment(unsigned id) { return _segments[id >= _segments.size() ? getMainSegmentId() : id]; }
