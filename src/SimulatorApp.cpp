@@ -146,9 +146,13 @@ void SimulatorApp::run() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
 
-        handleMessages();
+        if (prototyper->service()) {
+            state->setFrom(prototyper->buildLeds());
+        }
+        else {
+            handleMessages();
+        }
 
-        prototyper->service();
         // monitor-> ... // TODO
 
         shader->mightHotReload(config);
@@ -215,9 +219,9 @@ void SimulatorApp::initializeKeyMap() {
             toggle(state->verbose);
         }
     }, {
-        GLFW_KEY_F12,
+        GLFW_KEY_F10,
         [this](int mods) {
-            prototyper->toggle();
+             prototyper->toggle();
         }
     }, {
         GLFW_KEY_G,
@@ -292,7 +296,7 @@ void SimulatorApp::handleMessages() {
         using T = std::decay_t<decltype(msg)>;
 
         if constexpr (std::is_same_v<T, ProtocolMessage>) {
-            state->setMultiple(msg.mapping);
+            state->setFrom(msg.mapping);
             this->lastUdpMessage = msg;
 
         } else if constexpr (std::is_same_v<T, UnreadableMessage>) {

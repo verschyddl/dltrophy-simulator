@@ -52,18 +52,41 @@ struct Segment {
      * qm210: Tried to copy the minimum useful-looking set, but that as-is
      *        (thus all the "mutable", which probably follow no deeper sense here)
      */
-    uint32_t colors[NUM_COLORS];
     uint16_t start;
     uint16_t stop;
     uint16_t startY;
     uint16_t stopY;
 
+    uint32_t *pixels;
+    mutable uint8_t _capabilities;
+    uint32_t colors[NUM_COLORS];
     const char *name = "--name--unsupported--";
+
+    Segment(uint16_t sStart = 0, uint16_t sStop = 0, uint16_t sStartY = 0, uint16_t sStopY = 0)
+      : start(sStart),
+        stop(sStop > sStart ? sStop : sStart + 1),
+        startY(sStartY),
+        stopY(sStopY > sStartY ? sStopY : sStartY + 1),
+        colors{DEFAULT_COLOR,BLACK,BLACK}
+    {
+        pixels = new uint32_t[length()]{};
+    }
+
+    Segment(const Segment&) = default;
+    Segment& operator=(const Segment&) = default;
+    Segment(Segment&&) = default;
+    Segment& operator=(Segment&&) = default;
+
+    ~Segment() {
+        delete[] pixels;
+    }
+
+    static uint16_t maxWidth, maxHeight;
 
     inline uint16_t width() const { return stop > start ? (stop - start) : 0; }
     inline uint16_t height() const { return stopY - startY; }
     inline uint16_t length() const { return width() * height(); }
-    inline bool isActive() const { return true; }
+    inline bool isActive() const { return stop > start && pixels; }
 
     mutable bool on;
     mutable bool freeze;
@@ -83,16 +106,6 @@ struct Segment {
     mutable uint16_t aux1;
     byte     *data;
 
-    static uint16_t maxWidth, maxHeight;
-    uint32_t *pixels;
-    unsigned _dataLen;
-
-    inline uint32_t *getPixels() const                              { return pixels; }
-    inline void     setPixelColorRaw(unsigned i, uint32_t c) const  { pixels[i] = c; }
-    inline uint32_t getPixelColorRaw(unsigned i) const              { return pixels[i]; };
-    inline void     setPixelColorXYRaw(unsigned x, unsigned y, uint32_t c) const  { auto XY = [](unsigned X, unsigned Y){ return X + Y*Segment::vWidth(); }; pixels[XY(x,y)] = c; }
-    inline uint32_t getPixelColorXYRaw(unsigned x, unsigned y) const              { auto XY = [](unsigned X, unsigned Y){ return X + Y*Segment::vWidth(); }; return pixels[XY(x,y)]; };
-
     // WLED uses these static members as pre-calc cache
     // this works because in its global context, there's always ever one the current one.
     static unsigned      _usedSegmentData;
@@ -107,16 +120,18 @@ struct Segment {
     inline static uint32_t getCurrentColor(unsigned i)     { return Segment::_currentColors[i<NUM_COLORS?i:0]; }
     inline static const CRGBPalette16 &getCurrentPalette() { return Segment::_currentPalette; }
 
-    inline void     setPixelColorXY(unsigned x, unsigned y, uint32_t c) const { setPixelColor(y * Segment::maxWidth + x, c); }
-    inline void     setPixelColorXY(unsigned x, unsigned y, byte r, byte g, byte b, byte w = 0) const { setPixelColorXY(x, y, RGBW32(r,g,b,w)); }
-    inline void     setPixelColorXY(unsigned x, unsigned y, CRGB c) const     { setPixelColorXY(x, y, RGBW32(c.r,c.g,c.b,0)); }
-    inline uint32_t getPixelColorXY(unsigned x, unsigned y) const             { return getPixelColor(y * Segment::maxWidth + x); }
-
     // simplified for our specific use case (nothing transposed, grouped or mirrored )
     inline unsigned virtualWidth() const { return width(); };
     inline unsigned virtualHeight() const { return height(); }
     inline unsigned virtualLength() const { return length(); }
     inline unsigned rawLength() const { return virtualWidth() * virtualHeight(); }
+
+    inline void     setPixelColorRaw(unsigned i, uint32_t c) const  { pixels[i] = c; }
+    inline uint32_t getPixelColorRaw(unsigned i) const              { return pixels[i]; };
+    inline void     setPixelColorXY(unsigned x, unsigned y, uint32_t c) const { setPixelColor(y * Segment::maxWidth + x, c); }
+    inline void     setPixelColorXY(unsigned x, unsigned y, byte r, byte g, byte b, byte w = 0) const { setPixelColorXY(x, y, RGBW32(r,g,b,w)); }
+    inline void     setPixelColorXY(unsigned x, unsigned y, CRGB c) const     { setPixelColorXY(x, y, RGBW32(c.r,c.g,c.b,0)); }
+    inline uint32_t getPixelColorXY(unsigned x, unsigned y) const             { return getPixelColor(y * Segment::maxWidth + x); }
 
     [[gnu::hot]] void setPixelColor(int n, uint32_t c) const; // set relative pixel within segment with color
     inline void setPixelColor(unsigned n, uint32_t c) const                    { setPixelColor(int(n), c); }
@@ -187,20 +202,22 @@ struct ShimmlerMcShimface {
     bool isMatrix;
     Segment* _currentSegment;
     uint8_t _segment_index;
+    uint8_t _mainSegment;
 
-    unsigned long now, timebase;
-    uint16_t _frametime;
-    unsigned long _lastServiceShow;
-    unsigned long _lastShow;
-
-    // qm210: Need at least what is explicitly called and what is in the #defines...
     inline uint8_t getSegmentsNum() const   { return _segments.size(); }
     inline uint8_t getCurrSegmentId() const { return _segment_index; }
+    inline uint8_t getMainSegmentId() const { return _mainSegment; }      // returns main segment index
+    inline Segment& getSegment(unsigned id) { return _segments[id >= _segments.size() ? getMainSegmentId() : id]; }
+
     inline static unsigned vLength()                       { return Segment::_vLength; }
     inline static unsigned vWidth()                        { return Segment::_vWidth; }
     inline static unsigned vHeight()                       { return Segment::_vHeight; }
     inline static uint32_t getCurrentColor(unsigned i)     { return Segment::_currentColors[i<NUM_COLORS?i:0]; }
     inline static const CRGBPalette16 &getCurrentPalette() { return Segment::_currentPalette; }
+
+    unsigned long now, timebase;
+    uint16_t _frametime;
+    unsigned long _lastServiceShow;
 
     inline uint16_t getFrameTime() const    { return _frametime; }
 
@@ -209,6 +226,7 @@ struct ShimmlerMcShimface {
 };
 
 extern ShimmlerMcShimface strip;
+
 extern std::vector<BusConfig> busConfigs;
 extern bool gammaCorrectBri;
 extern bool gammaCorrectCol;
