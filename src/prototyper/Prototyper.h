@@ -201,6 +201,8 @@ private:
             // idea: these could be used to send UDP information (fake Audio signal etc.)
             seg.aux0 = 0;
             seg.aux1 = 0;
+            seg.custom1 = 0;
+            seg.custom2 = 0;
 
             // no idea whether we have any use for changing these...
             seg.freeze = false;
