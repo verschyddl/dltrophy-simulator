@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.22)
 project(dltrophy_simulator)
 set(CMAKE_CXX_STANDARD 20)
 
+option(LINK_STATIC "Build with static linkage" OFF)
+
 find_package(OpenGL REQUIRED)
 include(FetchContent)
 
@@ -50,10 +52,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(min_sock)
 
 
-# copy the shader sources into the build
+# copy the shader sources into the build folder (relevant for debug)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
      FILES_MATCHING PATTERN "*.glsl"
+)
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    $<$<NOT:$<CONFIG:Debug>>:USE_EMBEDDED_SHADERS>
 )
 
 add_executable(${PROJECT_NAME}
@@ -89,10 +95,12 @@ add_executable(${PROJECT_NAME}
         src/prototyper/fx/lib/hsv2rgb.cpp
         src/prototyper/fx/lib/colorutils.cpp
         src/prototyper/Prototyper.cpp
+        src/shaders/embedded.h
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
         thirdparty/glad/src/gl.c
+        thirdparty/freegetopt/getopt.c
         ${imgui_SOURCE_DIR}/imgui.cpp
         ${imgui_SOURCE_DIR}/imgui_draw.cpp
         ${imgui_SOURCE_DIR}/imgui_widgets.cpp
@@ -105,6 +113,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
         src/messages
         src/monitor
         thirdparty/glad/include
+        thirdparty/freegetopt/
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
         ${imgui_SOURCE_DIR}/misc/cpp/
@@ -122,6 +131,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         MinimalSocket
 )
 
+if(BUILD_STATIC)
+    target_link_options(${PROJECT_NAME} PRIVATE -static)
+    # <-- is for gcc, for msvc it would need to be something along - but I never tested:
+    # set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 # also, some tools for testing, debugging or wholesome jux
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools")

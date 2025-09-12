@@ -6,19 +6,36 @@
 #include "TrophyShader.h"
 #include "glHelpers.h"
 
+#ifdef USE_EMBEDDED_SHADERS
+#include "shaders/embedded.h"
+#else
 const std::string default_vertex_shader_path = "./shaders/vertex.glsl";
 const std::string default_fragment_shader_path = "./shaders/fragment.glsl";
+#endif
 
 TrophyShader::TrophyShader(const Config& config, ShaderState *state)
 : state(state) {
-    vertex.read(FileHelper::first_if_exists(
-            config.customVertexShaderPath,
-            default_vertex_shader_path
-    ));
-    fragment.read(FileHelper::first_if_exists(
-            config.customFragmentShaderPath,
-            default_fragment_shader_path
-    ));
+    if (std::filesystem::exists(config.customVertexShaderPath)) {
+        vertex.read(config.customVertexShaderPath);
+    }
+    else {
+#ifdef USE_EMBEDDED_SHADERS
+        vertex.takeEmbedded(embedded_vertex_shader);
+#else
+        vertex.read(default_vertex_shader_path);
+#endif
+    }
+    if (std::filesystem::exists(config.customFragmentShaderPath)) {
+        fragment.read(config.customFragmentShaderPath);
+    }
+    else {
+#ifdef USE_EMBEDDED_SHADERS
+        fragment.takeEmbedded(embedded_fragment_shader);
+#else
+        vertex.read(default_fragment_shader_path);
+#endif
+    }
+
     program = createProgram();
     initializeProgram(config);
 }

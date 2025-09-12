@@ -45,8 +45,12 @@ struct ShaderMeta {
         std::stringstream buffer;
         buffer << file.rdbuf();
         source = buffer.str();
-
         fileTime = std::filesystem::last_write_time(filePath);
+    }
+
+    void takeEmbedded(const char embeddedSource[]) {
+        filePath = "";
+        source = std::string(embeddedSource);
     }
 
     void compile() {
@@ -68,8 +72,16 @@ struct ShaderMeta {
 
     [[nodiscard]]
     bool fileHasChanged() const {
+        if (usesEmbedded()) {
+            return false;
+        }
         auto time = std::filesystem::last_write_time(filePath);
         return fileTime != time;
+    }
+
+    [[nodiscard]]
+    bool usesEmbedded() const {
+        return filePath.empty();
     }
 };
 

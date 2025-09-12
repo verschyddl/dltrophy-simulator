@@ -3,6 +3,7 @@
 **/_deps/
 external/
 build/
+build-*/
 
 CMakeFiles/
 cmake_install.cmake
