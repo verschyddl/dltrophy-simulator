@@ -79,9 +79,8 @@ struct Segment {
     Segment& operator=(Segment&&) = default;
 
     ~Segment() {
-        if (pixels) {
-            delete[] pixels;
-        }
+        // this SegFaults...?
+        // delete[] pixels;
     }
 
     static uint16_t maxWidth, maxHeight;

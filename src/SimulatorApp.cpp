@@ -432,7 +432,7 @@ void SimulatorApp::buildControlPanel() {
         touched |= ImGuiHelper::SlidersVec3(
                 "Logo/Base Dimensions",
                 &state->trophy->logoSize.x, 0.1f, +2.f,
-                &state->trophy->logoSize.y, 0.1f, +.5f,
+                &state->trophy->logoSize.y, 0.1f, +2.f,
                 &state->trophy->baseSize, 0.f, +2.f,
                 0.15f * panelWidth
         );

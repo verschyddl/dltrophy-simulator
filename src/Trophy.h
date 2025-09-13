@@ -35,8 +35,8 @@ struct Trophy {
     std::array<bool, N_LEDS> isLogo{};
     std::array<bool, N_LEDS> isBase{};
 
-    glm::vec3 logoCenter = {-0.175f, 0.262f, 0.f};
-    glm::vec2 logoSize = {0.5f, 0.375f};
+    glm::vec3 logoCenter = {-.025f, 0.26f, 0.f};
+    glm::vec2 logoSize = {0.75f, 0.35f};
     glm::vec3 baseCenter = {0.f, -.35f, 0.f};
     float baseSize = 1.0f;
     glm::vec3 backLedPos{-0.05f, -0.1f, 0.02f};
@@ -70,7 +70,7 @@ struct Trophy {
                 };
             }
             else if (isLogo[i]) {
-                relative = parse_logo_order(i - logoStartIndex);
+                relative = parse_logo_order(i);
                 absolute = glm::vec3{
                         logoCenter.x + logoSize.x * relative.x,
                         logoCenter.y + logoSize.y * relative.y,
@@ -105,7 +105,7 @@ struct Trophy {
     }
 
     static const int N_LOGO_WIDTH = 26;
-    static const int N_LOGO_HEIGHT = 13;
+    static const int N_LOGO_HEIGHT = 12;
     static const int N_LOGO_ORDER = N_LOGO_WIDTH * N_LOGO_HEIGHT;
     static const int _ = -1;
     static constexpr std::array<int, N_LOGO_ORDER> logo_order = {{
@@ -123,22 +123,18 @@ struct Trophy {
         _,  _,137,136,  _, 64, 69,  _, 70, 75,  _, 76, 81,  _, 82, 99,  _,100,  _,  _,  _,  _,  _,  _,  _,  _,
     }};
 
-    static glm::vec2 parse_logo_order(size_t logo_index) {
+    static glm::vec2 parse_logo_order(int logo_index) {
         auto it = std::find(logo_order.begin(), logo_order.end(), logo_index);
-        auto index = (it != logo_order.end())
-                ? static_cast<size_t>(std::distance(logo_order.begin(), it))
-                : logo_order.size();
+        auto index = static_cast<int>(
+                it != logo_order.end()
+                ? std::distance(logo_order.begin(), it)
+                : logo_order.size()
+        );
         auto indexX = double(index % N_LOGO_WIDTH);
         auto indexY = -double((index - indexX) / N_LOGO_WIDTH);
-        glm::vec2 result{
-                -0.5 + indexX / double(N_LOGO_WIDTH),
-                -0.5 + indexY / double(N_LOGO_HEIGHT)
-        };
-        auto cos60 = cos(60. * M_PI/180.);
-        auto sin60 = sin(60. * M_PI/180.);
         return {
-                cos60 * result.x - sin60 * result.y - 0.5,
-                sin60 * result.x + cos60 * result.y - 0.5,
+            -.5 + indexX / double(N_LOGO_WIDTH),
+            -.5 + indexY / double(N_LOGO_HEIGHT)
         };
     }
 
