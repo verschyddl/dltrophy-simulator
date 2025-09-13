@@ -58,10 +58,6 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders
      FILES_MATCHING PATTERN "*.glsl"
 )
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    $<$<NOT:$<CONFIG:Debug>>:USE_EMBEDDED_SHADERS>
-)
-
 add_executable(${PROJECT_NAME}
         src/main.cpp
         src/SimulatorApp.cpp
@@ -129,6 +125,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         nlohmann_json::nlohmann_json
         ixwebsocket
         MinimalSocket
+)
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+        $<$<NOT:$<CONFIG:Debug>>:USE_EMBEDDED_SHADERS>
 )
 
 if(BUILD_STATIC)
