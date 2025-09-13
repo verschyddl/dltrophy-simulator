@@ -131,8 +131,9 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         $<$<NOT:$<CONFIG:Debug>>:USE_EMBEDDED_SHADERS>
 )
 
-if(BUILD_STATIC)
-    target_link_options(${PROJECT_NAME} PRIVATE -static)
+if(LINK_STATIC)
+    message(STATUS "Linking statically, user should not need libstdc++-6.dll or libgcc_s_seh-1.dll on their own")
+    target_link_options(${PROJECT_NAME} PRIVATE -static -static-libgcc -static-libstdc++ -lwinpthread)
     # <-- is for gcc, for msvc it would need to be something along - but I never tested:
     # set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
