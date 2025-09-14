@@ -6,3 +6,6 @@
  */
 
 #include "fx/wled/shim.h"
+#include <cstdio>
+#include <math.h>
+

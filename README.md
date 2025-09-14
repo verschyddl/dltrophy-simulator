@@ -53,7 +53,7 @@ and this is why I allow myself (and yourself!) to also use that spelling of the 
 # Building
 
 ## Fedora
-Building on Fedora is straight forward.
+Building on Fedora is straight forward, says the drawer of Korkens.
 
 Install Build Dependencies ( assuming fedora 42)
 `sudo dnf install -y libXi-devel libXcursor-devel libXinerama-devel libXrandr-devel libxkbcommon-devel wayland-devel mesa-libGL-devel mesa-libGL gcc-c++ cmake`

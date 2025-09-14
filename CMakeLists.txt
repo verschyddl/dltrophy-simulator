@@ -96,7 +96,6 @@ add_executable(${PROJECT_NAME}
 
 target_sources(${PROJECT_NAME} PRIVATE
         thirdparty/glad/src/gl.c
-        thirdparty/freegetopt/getopt.c
         ${imgui_SOURCE_DIR}/imgui.cpp
         ${imgui_SOURCE_DIR}/imgui_draw.cpp
         ${imgui_SOURCE_DIR}/imgui_widgets.cpp
@@ -109,7 +108,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
         src/messages
         src/monitor
         thirdparty/glad/include
-        thirdparty/freegetopt/
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
         ${imgui_SOURCE_DIR}/misc/cpp/
@@ -117,6 +115,14 @@ target_include_directories(${PROJECT_NAME} PUBLIC
         src/prototyper
         src/prototyper/fx
 )
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_sources(${PROJECT_NAME} PRIVATE
+        thirdparty/freegetopt/getopt.c
+    )
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        thirdparty/freegetopt/
+    )
+endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         glfw
@@ -126,6 +132,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         ixwebsocket
         MinimalSocket
 )
+
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(X11 REQUIRED)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${X11_INCLUDE_DIR})
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${X11_LIBRARIES})
+endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
         $<$<NOT:$<CONFIG:Debug>>:USE_EMBEDDED_SHADERS>

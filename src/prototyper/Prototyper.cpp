@@ -5,7 +5,7 @@
 //     due to the structure of the FX_DEADLINE_TROPHY.h Header, this
 //     can only be included by one translation unit, i.e. one .cpp, not any .h
 
-#include "FX_DEADLINE_TROPHY.h"
 #include "Prototyper.h"
+#include "FX_DEADLINE_TROPHY.h"
 
 mode_ptr Prototyper::_mode = mode_DeadlineTrophy;

@@ -1,6 +1,6 @@
 # build container in order to make this work under linux
 # (ubuntu as first example, must modify for fedora blahbluhblahblaaah)
-FROM ubuntu:22.04
+FROM ubuntu:25.04
 
 LABEL maintainer="qm210"
 
@@ -14,7 +14,9 @@ RUN apt-get update && \
             build-essential cmake ninja-build git ca-certificates pkg-config \
             # stuff for graphics
             libgl1-mesa-dev libglu1-mesa-dev libxkbcommon-dev libwayland-dev \
-            libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev && \
+            libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libx11-dev \
+			# and debugging =P
+			vim && \
     # need the Toolchain PPA for GCC 13 for C++20
     add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
     apt-get update && \

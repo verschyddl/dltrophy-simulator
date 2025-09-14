@@ -4,10 +4,9 @@
  * Mostly somewhat brainlessly copied from our current WLED fork.
  */
 
-#include "stdint.h"
+#include <cstdint>
 #include <array>
 #include <vector>
-#include <random>
 
 #include "FX.h"
 #include "fx/wled/const.h"
@@ -26,7 +25,9 @@
 int32_t min(int32_t a, int32_t b);
 int32_t max(int32_t a, int32_t b);
 
+#ifndef __linux__
 uint32_t random();
+#endif
 uint32_t random(uint32_t upperlimit);
 int32_t random(int32_t lowerlimit, int32_t upperlimit);
 

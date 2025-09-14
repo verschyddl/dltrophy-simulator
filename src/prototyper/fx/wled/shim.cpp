@@ -45,12 +45,14 @@ int32_t max(int32_t a, int32_t b) {
     return b > a ? b : a;
 }
 
+#ifndef __linux__
 uint32_t random() {
     // the EPS32 uses some real hardware random, we don't have that, well, oops, oh no.
     static std::random_device rd;
     static std::mt19937 gen(rd());
     return gen();
 }
+#endif
 
 uint32_t random(uint32_t upperlimit) {
     uint32_t rnd = random();
